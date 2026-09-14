@@ -3,31 +3,31 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0F5132">
+<meta name="theme-color" content="#F2F5FB">
 <title>斐石储能 · 客户管理系统</title>
 <script src="supabase.min.js"></script>
 <style>
 :root{
-  --bg:#F4F2EA;
-  --bg-2:#ECE9DD;
+  --bg:#F2F5FB;
+  --bg-2:#EAEFF8;
   --surface:#FFFFFF;
-  --surface-2:#FBFBF8;
-  --ink:#1D2622;
-  --ink-2:#3C4642;
-  --muted:#747D78;
-  --faint:#A6ADA8;
-  --brand:#0F5132;
-  --brand-2:#157A4E;
-  --brand-soft:#E3EFE7;
-  --accent:#C9883B;
-  --accent-soft:#F7ECD9;
-  --danger:#B3402E;
-  --danger-soft:#F7E4DE;
-  --line:#E4E0D3;
-  --line-2:#EFECE2;
-  --ok:#2E7D5B;
-  --shadow:0 1px 2px rgba(20,28,24,.05),0 8px 24px -12px rgba(20,28,24,.16);
-  --shadow-lg:0 2px 6px rgba(20,28,24,.06),0 20px 40px -18px rgba(20,28,24,.28);
+  --surface-2:#F7FAFF;
+  --ink:#16284C;
+  --ink-2:#3B4E77;
+  --muted:#64748F;
+  --faint:#94A3B8;
+  --brand:#2563EB;
+  --brand-2:#1D4ED8;
+  --brand-soft:#E8F1FE;
+  --accent:#0EA5E9;
+  --accent-soft:#E6F4FE;
+  --danger:#EF4444;
+  --danger-soft:#FDE9E9;
+  --line:#DCE5F2;
+  --line-2:#E9EFF8;
+  --ok:#2563EB;
+  --shadow:0 1px 2px rgba(16,40,80,.06),0 12px 28px -12px rgba(37,99,235,.16);
+  --shadow-lg:0 2px 8px rgba(16,40,80,.08),0 24px 48px -18px rgba(37,99,235,.26);
   --r:16px;
   --r-sm:12px;
   --ease:cubic-bezier(.25,1,.5,1);
@@ -37,13 +37,18 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
 body{
-  margin:0;background:var(--bg);color:var(--ink);
+  margin:0;color:var(--ink);
+  background:
+    radial-gradient(1000px 480px at 88% -8%, rgba(37,99,235,.05), transparent 60%),
+    radial-gradient(900px 440px at 6% 108%, rgba(14,165,233,.06), transparent 60%),
+    #F2F5FB;
+  background-attachment:fixed;
   font-family:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
   font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;
 }
 button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
 input,select,textarea{font-family:inherit;font-size:15px;color:var(--ink);border:1px solid var(--line);background:var(--surface);border-radius:var(--r-sm);padding:11px 13px;width:100%;transition:border-color var(--t-1)}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(21,122,78,.14)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(59,130,246,.22)}
 .label{display:block;font-size:12.5px;color:var(--muted);margin:0 2px 5px;font-weight:600}
 .num{font-variant-numeric:tabular-nums}
 
@@ -51,15 +56,15 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand-2)
 #vLogin{
   position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
   padding:24px;background:
-    radial-gradient(120% 80% at 100% 0%,#123B29 0%,transparent 55%),
-    radial-gradient(120% 90% at 0% 100%,#0B2E20 0%,#0B2E20 100%);
-  color:#EDF4EF;overflow:auto;
+    radial-gradient(120% 80% at 100% 0%, #DBEAFE 0%, transparent 55%),
+    radial-gradient(120% 90% at 0% 100%, #E6F0FF 0%, #EAF2FC 100%);
+  color:#16284C;overflow:auto;
 }
 .login-card{width:100%;max-width:400px;padding:12px;margin:auto}
 .brand-symbol{display:flex;align-items:center;gap:12px;margin-bottom:26px}
-.symbol{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#1B8A56,#0F5132);display:grid;place-items:center;color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 8px 20px -6px rgba(21,122,78,.6)}
+.symbol{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#3B82F6,#1D4ED8);display:grid;place-items:center;color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 8px 20px -6px rgba(37,99,235,.55)}
 .brand-symbol h1{font-size:20px;margin:0;letter-spacing:.5px;font-weight:700}
-.brand-symbol p{margin:2px 0 0;font-size:12px;color:#9FBEAC}
+.brand-symbol p{margin:2px 0 0;font-size:12px;color:#7B90B8}
 .login-panel{background:rgba(255,255,255,.97);color:var(--ink);border-radius:22px;padding:22px 20px;box-shadow:var(--shadow-lg)}
 .login-panel h2{margin:0 0 4px;font-size:18px;color:var(--brand)}
 .login-sub{font-size:12.5px;color:var(--muted);margin:0 0 18px}
@@ -67,7 +72,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand-2)
 .pw-field{position:relative}
 .pw-field input{padding-right:44px;letter-spacing:1px}
 .eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--muted);font-size:15px}
-.primary-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:var(--brand-2);color:#fff;font-weight:700;font-size:15px;padding:13px;border-radius:14px;box-shadow:0 10px 22px -8px rgba(21,122,78,.55);transition:transform var(--t-1),background var(--t-1)}
+.primary-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:var(--brand-2);color:#fff;font-weight:700;font-size:15px;padding:13px;border-radius:14px;box-shadow:0 10px 22px -8px rgba(37,99,235,.5);transition:transform var(--t-1),background var(--t-1)}
 .primary-btn:active{transform:scale(.985)}
 .primary-btn[disabled]{opacity:.6;box-shadow:none}
 .login-hint{margin-top:16px;font-size:11.5px;color:var(--faint);line-height:1.6}
@@ -136,10 +141,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand-2)
 .empty .e-ico{width:56px;height:56px;margin:0 auto 14px;border-radius:18px;background:var(--bg-2);display:grid;place-items:center;color:var(--faint)}
 
 /* 详情 */
-.d-hero{position:relative;border-radius:var(--r);overflow:hidden;background:linear-gradient(150deg,#123B29,#0F5132 70%);color:#fff;padding:20px 18px 30px;margin-bottom:-16px}
-.d-hero .back{display:inline-flex;align-items:center;gap:6px;color:#BFE0CE;font-size:13px;margin-bottom:18px;padding:4px 8px 4px 0;border-radius:8px}
+.d-hero{position:relative;border-radius:var(--r);overflow:hidden;background:linear-gradient(150deg,#1E40AF,#2563EB 70%);color:#fff;padding:20px 18px 30px;margin-bottom:-16px}
+.d-hero .back{display:inline-flex;align-items:center;gap:6px;color:#D6E4FF;font-size:13px;margin-bottom:18px;padding:4px 8px 4px 0;border-radius:8px}
 .d-hero h2{margin:0 0 8px;font-size:20px;font-weight:800;line-height:1.3;padding-right:8px;word-break:break-all}
-.d-hero .d-sub{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12.5px;color:#C5DFD0}
+.d-hero .d-sub{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12.5px;color:#DCE8FF}
 .d-hero .d-badge{background:rgba(255,255,255,.14);padding:3px 10px;border-radius:20px;font-weight:650}
 .d-brief{margin:24px 0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .kv{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 13px}
@@ -243,7 +248,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand-2)
 @media (pointer:fine){
   .c-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
   .r-tile:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
-  .primary-btn:hover{background:#0E6B43}
+  .primary-btn:hover{background:#1747C9}
 }
 @media(min-width:640px){.region-grid{grid-template-columns:repeat(3,1fr)}.d-brief{grid-template-columns:1fr 1fr 1fr}.form-grid .two{grid-column:auto}}
 @media(min-width:768px){.brand-symbol h1{font-size:22px}.login-panel h2{font-size:20px}.region-grid{grid-template-columns:repeat(5,1fr)}}

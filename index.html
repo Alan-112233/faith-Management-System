@@ -378,12 +378,19 @@ async function loadAll(){
   clients.sort(function(a,b){return (a.id||'')<(b.id||'')?-1:1;});
 }
 function subscribe(sbc){
-  sbc.channel('crm-db')
-    .on('postgres_changes',{event:'*',schema:'public',table:'clients'},function(){onRemote();})
-    .on('postgres_changes',{event:'*',schema:'public',table:'followups'},function(){onRemote();})
-    .on('postgres_changes',{event:'*',schema:'public',table:'quotes'},function(){onRemote();})
-    .on('postgres_changes',{event:'*',schema:'public',table:'shipments'},function(){onRemote();})
-    .subscribe();
+  try{
+    (sbc.getChannels()||[]).forEach(function(ch){
+      if(ch&&(ch.topic||'').indexOf('crm-db')>=0){try{sbc.removeChannel(ch);}catch(e){}}
+    });
+  }catch(e){}
+  try{
+    sbc.channel('crm-db')
+      .on('postgres_changes',{event:'*',schema:'public',table:'clients'},function(){onRemote();})
+      .on('postgres_changes',{event:'*',schema:'public',table:'followups'},function(){onRemote();})
+      .on('postgres_changes',{event:'*',schema:'public',table:'quotes'},function(){onRemote();})
+      .on('postgres_changes',{event:'*',schema:'public',table:'shipments'},function(){onRemote();})
+      .subscribe();
+  }catch(e){ console.warn('realtime subscribe:',e&&e.message); }
 }
 function onRemote(){
   loadAll().then(function(){ if(cur&&view&&view.name!=='edit')render(); }).catch(function(){});

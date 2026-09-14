@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F5132">
+<title>斐石储能 · 客户管理系统</title>
+<script src="supabase.min.js"></script>
+<style>
+:root{
+  --bg:#F4F2EA;
+  --bg-2:#ECE9DD;
+  --surface:#FFFFFF;
+  --surface-2:#FBFBF8;
+  --ink:#1D2622;
+  --ink-2:#3C4642;
+  --muted:#747D78;
+  --faint:#A6ADA8;
+  --brand:#0F5132;
+  --brand-2:#157A4E;
+  --brand-soft:#E3EFE7;
+  --accent:#C9883B;
+  --accent-soft:#F7ECD9;
+  --danger:#B3402E;
+  --danger-soft:#F7E4DE;
+  --line:#E4E0D3;
+  --line-2:#EFECE2;
+  --ok:#2E7D5B;
+  --shadow:0 1px 2px rgba(20,28,24,.05),0 8px 24px -12px rgba(20,28,24,.16);
+  --shadow-lg:0 2px 6px rgba(20,28,24,.06),0 20px 40px -18px rgba(20,28,24,.28);
+  --r:16px;
+  --r-sm:12px;
+  --ease:cubic-bezier(.25,1,.5,1);
+  --t-1:120ms ease;
+  --t-2:220ms var(--ease);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
+  font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:15px;color:var(--ink);border:1px solid var(--line);background:var(--surface);border-radius:var(--r-sm);padding:11px 13px;width:100%;transition:border-color var(--t-1)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(21,122,78,.14)}
+.label{display:block;font-size:12.5px;color:var(--muted);margin:0 2px 5px;font-weight:600}
+.num{font-variant-numeric:tabular-nums}
+
+/* ===== 登录 ===== */
+#vLogin{
+  position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+  padding:24px;background:
+    radial-gradient(120% 80% at 100% 0%,#123B29 0%,transparent 55%),
+    radial-gradient(120% 90% at 0% 100%,#0B2E20 0%,#0B2E20 100%);
+  color:#EDF4EF;overflow:auto;
+}
+.login-card{width:100%;max-width:400px;padding:12px;margin:auto}
+.brand-symbol{display:flex;align-items:center;gap:12px;margin-bottom:26px}
+.symbol{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#1B8A56,#0F5132);display:grid;place-items:center;color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 8px 20px -6px rgba(21,122,78,.6)}
+.brand-symbol h1{font-size:20px;margin:0;letter-spacing:.5px;font-weight:700}
+.brand-symbol p{margin:2px 0 0;font-size:12px;color:#9FBEAC}
+.login-panel{background:rgba(255,255,255,.97);color:var(--ink);border-radius:22px;padding:22px 20px;box-shadow:var(--shadow-lg)}
+.login-panel h2{margin:0 0 4px;font-size:18px;color:var(--brand)}
+.login-sub{font-size:12.5px;color:var(--muted);margin:0 0 18px}
+.field{margin-bottom:14px}
+.pw-field{position:relative}
+.pw-field input{padding-right:44px;letter-spacing:1px}
+.eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--muted);font-size:15px}
+.primary-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:var(--brand-2);color:#fff;font-weight:700;font-size:15px;padding:13px;border-radius:14px;box-shadow:0 10px 22px -8px rgba(21,122,78,.55);transition:transform var(--t-1),background var(--t-1)}
+.primary-btn:active{transform:scale(.985)}
+.primary-btn[disabled]{opacity:.6;box-shadow:none}
+.login-hint{margin-top:16px;font-size:11.5px;color:var(--faint);line-height:1.6}
+.err{border-radius:10px;background:var(--danger-soft);color:var(--danger);font-size:12.5px;padding:9px 12px;margin:0 0 12px;display:none}
+.err.show{display:block}
+
+/* ===== 应用外壳 ===== */
+#vApp{display:none;height:100dvh;max-height:100vh;flex-direction:column;background:var(--bg)}
+#vApp.on{display:flex}
+.topbar{position:sticky;top:0;z-index:20;background:rgba(244,242,234,.92);backdrop-filter:blur(10px);padding:calc(env(safe-area-inset-top) + 12px) 16px 10px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:12px}
+.topbar .t-title{font-size:17px;font-weight:800;letter-spacing:.3px;display:flex;align-items:center;gap:8px;min-width:0}
+.topbar .t-sub{font-size:12px;color:var(--muted);font-weight:500}
+.search-wrap{flex:1;position:relative;max-width:520px}
+.search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--faint)}
+.search-wrap input{padding-left:38px;border-radius:12px;background:var(--surface);font-size:14px}
+.top-actions{display:flex;align-items:center;gap:8px}
+.icon-btn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line);color:var(--ink-2);box-shadow:var(--shadow)}
+.icon-btn.on{background:var(--brand);border-color:var(--brand);color:#fff}
+
+.scroll{flex:1;overflow-y:auto;padding:14px 14px calc(env(safe-area-inset-bottom) + 96px);scrollbar-width:thin}
+.panel{max-width:860px;margin:0 auto}
+
+/* 区域瓷砖 */
+.region-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.r-tile{position:relative;overflow:hidden;border-radius:var(--r);background:var(--surface);border:1px solid var(--line);padding:15px 15px 13px;box-shadow:var(--shadow);text-align:left;transition:transform var(--t-2),box-shadow var(--t-2)}
+.r-tile:active{transform:scale(.98)}
+.r-tile .r-ico{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;margin-bottom:12px;background:var(--brand-soft);color:var(--brand)}
+.r-tile .r-name{font-size:15.5px;font-weight:750;color:var(--ink)}
+.r-tile .r-meta{margin-top:2px;font-size:12px;color:var(--muted)}
+.r-tile .r-count{position:absolute;top:13px;right:14px;font-size:22px;font-weight:800;color:var(--line);line-height:1}
+.r-tile .r-next{position:absolute;right:14px;bottom:13px;font-size:16px;color:var(--faint)}
+.r-tile[data-big] .r-ico{background:var(--accent-soft);color:var(--accent)}
+.r-tile[data-big] .r-count{color:var(--accent-soft)}
+
+.section-title{display:flex;align-items:center;justify-content:space-between;margin:24px 2px 12px}
+.section-title h3{margin:0;font-size:13.5px;font-weight:750;color:var(--ink-2);letter-spacing:.4px;text-transform:uppercase}
+.section-title .more{font-size:12.5px;color:var(--brand);font-weight:600}
+
+/* 客户卡片 */
+.c-card{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:10px;box-shadow:var(--shadow);text-align:left;width:100%;transition:transform var(--t-2)}
+.c-card:active{transform:scale(.985)}
+.avatar{flex:none;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:16px;font-weight:750;color:#fff;background:var(--brand-2)}
+.c-main{flex:1;min-width:0}
+.c-name{font-size:15px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.c-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+.tag{font-size:10.5px;font-weight:650;padding:2.5px 8px;border-radius:20px;background:var(--bg-2);color:var(--ink-2)}
+.tag.t-green{background:var(--brand-soft);color:var(--brand)}
+.tag.t-amber{background:var(--accent-soft);color:var(--accent)}
+.tag.t-line{background:transparent;border:1px solid var(--line);color:var(--muted)}
+.c-meta{font-size:12.5px;color:var(--muted);margin-top:7px;display:flex;flex-direction:column;gap:3px}
+.c-meta b{color:var(--ink-2);font-weight:650}
+.c-meta .row{display:flex;align-items:center;gap:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.c-meta .row svg{flex:none;color:var(--faint)}
+.c-chev{flex:none;color:var(--faint);font-size:16px;margin-top:4px}
+
+/* 筛选条 */
+.filter-bar{position:sticky;top:64px;z-index:15;background:var(--bg);padding:8px 0 6px;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 -2px}
+.filter-bar::-webkit-scrollbar{display:none}
+.chip{flex:none;font-size:12.5px;font-weight:650;padding:7px 13px;border-radius:20px;background:var(--surface);border:1px solid var(--line);color:var(--ink-2);transition:all var(--t-1);white-space:nowrap}
+.chip:active{transform:scale(.96)}
+.chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.count-pill{margin-left:4px;font-size:11px;opacity:.8;font-weight:650}
+
+/* 空状态 */
+.empty{padding:60px 20px;text-align:center;color:var(--muted)}
+.empty .e-ico{width:56px;height:56px;margin:0 auto 14px;border-radius:18px;background:var(--bg-2);display:grid;place-items:center;color:var(--faint)}
+
+/* 详情 */
+.d-hero{position:relative;border-radius:var(--r);overflow:hidden;background:linear-gradient(150deg,#123B29,#0F5132 70%);color:#fff;padding:20px 18px 30px;margin-bottom:-16px}
+.d-hero .back{display:inline-flex;align-items:center;gap:6px;color:#BFE0CE;font-size:13px;margin-bottom:18px;padding:4px 8px 4px 0;border-radius:8px}
+.d-hero h2{margin:0 0 8px;font-size:20px;font-weight:800;line-height:1.3;padding-right:8px;word-break:break-all}
+.d-hero .d-sub{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12.5px;color:#C5DFD0}
+.d-hero .d-badge{background:rgba(255,255,255,.14);padding:3px 10px;border-radius:20px;font-weight:650}
+.d-brief{margin:24px 0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kv{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 13px}
+.kv .k{font-size:11.5px;color:var(--muted);font-weight:650;letter-spacing:.3px}
+.kv .v{font-size:14.5px;font-weight:700;color:var(--ink);margin-top:2px;word-break:break-all}
+.kv .v.small{font-size:13px;font-weight:600}
+.kv.quote{grid-column:1/-1;background:var(--accent-soft);border-color:#EBDDB7}
+.kv.quote .v{color:var(--accent);font-size:16px}
+.block{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+.block-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.block-head h4{margin:0;font-size:14px;font-weight:750;color:var(--ink-2)}
+.icon-act{font-size:12px;color:var(--brand);font-weight:650;display:inline-flex;align-items:center;gap:5px}
+.long-text{font-size:13.5px;color:var(--ink-2);white-space:pre-wrap;word-break:break-all;line-height:1.7;max-height:220px;overflow:auto}
+.copybtn{font-size:11.5px;color:var(--muted);border:1px solid var(--line);padding:3px 9px;border-radius:8px;margin-left:8px}
+.contact-list{display:flex;flex-direction:column;gap:10px}
+.contact-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line-2)}
+.contact-row:last-child{border-bottom:none}
+.contact-row .l{font-size:13.5px;font-weight:650;color:var(--ink-2)}
+.contact-row .r{font-size:13px;color:var(--brand);font-weight:700;letter-spacing:.3px}
+.tl{position:relative;padding-left:20px}
+.tl::before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:1.5px;background:var(--line)}
+.tl-item{position:relative;margin-bottom:16px}
+.tl-item::before{content:"";position:absolute;left:-18px;top:6px;width:9px;height:9px;border-radius:50%;background:var(--brand-2);border:2px solid var(--surface);box-shadow:0 0 0 1px var(--brand-2)}
+.tl-item.new::before{background:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.tl-date{font-size:12px;font-weight:700;color:var(--brand);margin-bottom:3px}
+.tl-date.new{color:var(--accent)}
+.tl-text{font-size:13.5px;color:var(--ink-2);line-height:1.65}
+.q-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line-2);flex-wrap:wrap}
+.q-row:last-child{border-bottom:none}
+.q-left{min-width:0}
+.q-date{font-size:12px;color:var(--muted)}
+.q-model{font-size:13.5px;font-weight:700;color:var(--ink)}
+.q-sub{font-size:12px;color:var(--muted)}
+.q-price{font-weight:800;font-size:14px;color:var(--ink);white-space:nowrap}
+.q-price .usd{font-size:12px;color:var(--muted);font-weight:600}
+
+/* 表单 */
+.form{padding-bottom:8px}
+.form-row{margin-bottom:15px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-grid .full{grid-column:1/-1}
+.form-grid .two{grid-column:1/-1}
+.field-actions{display:flex;gap:10px;margin-top:6px;flex-wrap:wrap}
+.ghost-btn{flex:1;font-size:14px;font-weight:650;padding:13px;border-radius:14px;background:var(--surface);border:1px solid var(--line);color:var(--ink-2)}
+.danger-btn{flex:1;font-size:14px;font-weight:650;padding:13px;border-radius:14px;background:var(--danger-soft);border:1px solid transparent;color:var(--danger)}
+.save-btn{flex:1.4;font-size:14px;font-weight:700;padding:13px;border-radius:14px;background:var(--brand-2);color:#fff}
+.sec-block{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+.sec-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line-2)}
+.sec-row:last-child{border-bottom:none}
+.sec-ico{width:38px;height:38px;flex:none;border-radius:11px;display:grid;place-items:center}
+.sec-row .t{flex:1}
+.sec-row .t b{display:block;font-size:14px;color:var(--ink)}
+.sec-row .t span{font-size:12.5px;color:var(--muted)}
+.sec-row .role{font-size:11px;font-weight:700;padding:3px 9px;border-radius:8px}
+.role.admin{background:var(--accent-soft);color:var(--accent)}
+.role.editor{background:var(--brand-soft);color:var(--brand)}
+.role.viewer{background:var(--bg-2);color:var(--ink-2)}
+
+/* 底部导航 */
+.bottombar{position:fixed;bottom:0;left:0;right:0;z-index:30;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 6px) max(8px,env(safe-area-inset-left));display:flex}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:11px;font-weight:650;padding:6px 2px;border-radius:12px;position:relative}
+.nav-item svg{width:22px;height:22px}
+.nav-item.on{color:var(--brand)}
+.nav-item .dot{position:absolute;top:4px;right:calc(50% - 18px);width:7px;height:7px;border-radius:50%;background:var(--accent)}
+
+/* FAB */
+.fab{position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom) + 84px);z-index:29;width:54px;height:54px;border-radius:18px;background:var(--brand);color:#fff;display:grid;place-items:center;box-shadow:0 14px 30px -8px rgba(15,81,50,.6);font-size:26px;animation:rise .4s var(--ease)}
+/* 浮动操作项 */
+.fab-menu{position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom) + 150px);z-index:29;display:flex;flex-direction:column;gap:10px;align-items:flex-end;animation:rise .3s var(--ease)}
+.fab-item{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-lg);padding:10px 14px;border-radius:13px;font-size:13.5px;font-weight:700;color:var(--ink)}
+.dim{display:none;position:fixed;inset:0;z-index:28;background:rgba(15,22,18,.35)}
+.dim.on{display:block}
+
+/* 统计 */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.stat .n{font-size:28px;font-weight:800;letter-spacing:-.5px}
+.stat .t{font-size:12px;color:var(--muted);margin-top:2px}
+.stat.r1 .n{color:var(--brand)}
+.stat.r2 .n{color:var(--accent)}
+.region-bar{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.region-bar .b-row{display:flex;align-items:center;gap:10px;font-size:12.5px}
+.region-bar .b-row .n{flex:none;width:56px;color:var(--ink-2);font-weight:650}
+.region-bar .track{flex:1;height:9px;background:var(--bg-2);border-radius:20px;overflow:hidden}
+.region-bar .fill{height:100%;border-radius:20px;background:linear-gradient(90deg,var(--brand),var(--brand-2))}
+.region-bar .fill.amber{background:linear-gradient(90deg,#B4772B,var(--accent))}
+.region-bar .b-row .pct{flex:none;width:34px;text-align:right;color:var(--muted);font-weight:650}
+
+/* 列表 tab */
+.view-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.view-head h2{margin:0;font-size:18px;font-weight:800;flex:1}
+.view-head .sub{font-size:12.5px;color:var(--muted)}
+
+/* toast */
+#toast{position:fixed;top:calc(env(safe-area-inset-top) + 14px);left:50%;transform:translateX(-50%) translateY(-8px);z-index:80;background:var(--ink);color:#fff;padding:10px 18px;border-radius:12px;font-size:13.5px;font-weight:600;opacity:0;pointer-events:none;transition:opacity var(--t-2),transform var(--t-2);max-width:88%;text-align:center;box-shadow:var(--shadow-lg)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.rise{animation:rise .35s var(--ease) both}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (pointer:fine){
+  .c-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+  .r-tile:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+  .primary-btn:hover{background:#0E6B43}
+}
+@media(min-width:640px){.region-grid{grid-template-columns:repeat(3,1fr)}.d-brief{grid-template-columns:1fr 1fr 1fr}.form-grid .two{grid-column:auto}}
+@media(min-width:768px){.brand-symbol h1{font-size:22px}.login-panel h2{font-size:20px}.region-grid{grid-template-columns:repeat(5,1fr)}}
+@media(min-width:1024px){
+  body{font-size:15px}
+  .panel{padding-top:8px}
+  .d-brief{grid-template-columns:repeat(4,1fr)}
+}
+.hidden{display:none!important}
+.nowrap{white-space:nowrap}
+.muted{color:var(--muted)}
+.mt6{margin-top:6px}.mt12{margin-top:12px}.mt20{margin-top:20px}
+</style>
+</head>
+<body>
+
+<!-- 登录 -->
+<div id="vLogin">
+  <div class="login-card">
+    <div class="brand-symbol rise">
+      <div class="symbol">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+      </div>
+      <div>
+        <h1>斐石储能</h1>
+        <p>客户管理系统</p>
+      </div>
+    </div>
+    <div class="login-panel rise" style="animation-delay:.06s">
+      <h2>欢迎回来</h2>
+      <p class="login-sub">登录以查看与维护客户资料</p>
+      <div class="err" id="loginErr"></div>
+      <div class="field">
+        <label class="label">邮箱</label>
+        <input id="loginUser" autocomplete="username" placeholder="请输入登录邮箱">
+      </div>
+      <div class="field">
+        <label class="label">密码</label>
+        <div class="pw-field">
+          <input id="loginPw" type="password" autocomplete="current-password" placeholder="请输入密码">
+          <button type="button" class="eye" onclick="togglePw('loginPw',this)" aria-label="显示密码">👁</button>
+        </div>
+      </div>
+      <button class="primary-btn" id="loginBtn" onclick="doLogin()">
+        <span>登 录</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+      <p class="login-hint">• 使用在云端后台创建的账号（邮箱 + 密码）登录<br>• 初始管理员及成员账号的创建步骤见 SETUP 部署文档<br>• 数据云端共享，多人实时同步</p>
+    </div>
+  </div>
+</div>
+
+<!-- 应用 -->
+<div id="vApp">
+  <header class="topbar" id="topbar"></header>
+  <main class="scroll" id="main"><div class="panel" id="panel"></div></main>
+  <div class="dim" id="dim" onclick="closeFab()"></div>
+</div>
+<button class="fab hidden" id="fab" onclick="toggleFab()">＋</button>
+<div class="fab-menu hidden" id="fabMenu"></div>
+
+<div id="toast"></div>
+
+<script id="seed" type="application/json">[{"id":"c1","name":"湖南麦格米特电气技术有限公司","category":"已入库·跟进中","region":"亚洲/大洋洲","targetProduct":"","companyInfo":"湖南麦格米特电气技术有限公司成立于2018年10月18日，法定代表人为李升付，注册地址位于湖南省长沙市长沙县经济技术开发区红树坡路76号，经营状态为【存续】，注册资本60000万人民币。该企业是上市公司深圳麦格米特电气股份有限公司（股票代码：002851）旗下主体，以电力电子及工业控制为核心技术，主营电力电子产品、电气设备、机电一体化设备的研发、生产与销售，业务覆盖工业电源、工业自动化、新能源、智能家电等领域，2025年营业收入达19.19亿元，拥有国家级高新技术企业、国家级专精特新“小巨人”企业等资质认定。","contact":"彭总","phone":"","address":"深圳市南山区紫光信息港C座1楼，杨宏鑫13927435253","market":"印度、巴基斯坦","liaison":"肖春明","status":"跟进中","followup":[{"date":"2026.8.17","text":"杨宏鑫在巴基斯坦，麦科货已到，客户反馈很好"},{"date":"2026.7.6","text":"询问巴基斯坦当地情况/DC-DC款价格"},{"date":"2026.7.20","text":"联系杨宏鑫，300W中性，不含电池和组装，1K最低报价560"},{"date":"2026.7.16","text":"联系杨宏鑫，询问巴基斯坦当地市场情况"},{"date":"2026.7.14","text":"主板价格再次调整，500W主板价格360元"}],"quotes":[],"latestQuote":"","note":"","tags":["已入库·跟进中","已发货"]},{"id":"c2","name":"代勒兰德（常州）能源有限公司","category":"已入库·跟进中","region":"亚洲/大洋洲","targetProduct":"","companyInfo":"主体背景：代勒兰德科技有限公司2019年成立于法兰克福，大股东为德国代勒公司（成立于1954年）。公司以德国标准、德国团队寻求与具备ODM能力的中企合作，向全球提供户用能源解决方案\n业务方向：主营阳台光储系统、微型逆变器、工商业储能系统、锂离子/钠离子户用及便携式储能系统研发\n市场布局：目前主要出货德国等欧洲地区，合作德国渠道商已销售800W/1000W微逆、微储和户用光伏储能系统等产品；计划布局工商业领域。 江苏省南京市江北新区龙泰路8号二号楼四层409室\n经营范围：涵盖新兴能源技术研发、储能技术服务、电池销售、光伏设备及元器件制造、充电桩销售、货物/技术进出口等（许可项目需审批）","contact":"洪总","phone":"18963612193","address":"江苏省南京市江北新区龙泰路8号二号楼四层409，洪总，18963612193","market":"巴布亚新几内亚","liaison":"","status":"跟进中","followup":[{"date":"2026.8.25","text":"500W和3600W各5台样机"},{"date":"2026.7.7","text":"询问娄总订单海外客户是否收到货，反馈情况如何。娄总还没有回复。"},{"date":"2026.7.31","text":"1200W、2度电新品规格书，没有回复"}],"quotes":[],"latestQuote":"","note":"","tags":["已入库·跟进中","已发货"]},{"id":"c3","name":"厦门宁电时代新能源科技有限公司","category":"已入库·跟进中","region":"非洲","targetProduct":"","companyInfo":"厦门宁电时代新能源科技有限公司成立于2022年5月9日，注册资本2000万人民币，法定代表人为杨宁，注册地址位于厦门火炬高新区(翔安)产业区同龙二路942号413-8，企业状态为【存续】，所属行业为新能源相关制造业，是2024年认定的国家高新技术企业、2025年科技型中小企业、小微企业。\n该公司核心业务覆盖新能源技术研发、电池制造、储能技术服务、新能源汽车相关设备产销、光伏及充电基础设施运营等领域，对外投资3家企业，业务布局覆盖福建、四川、广东等区域。","contact":"王总","phone":"13559377797","address":"福建省厦门市厦禾路589号银聚邸3楼314","market":"中亚、墨西哥、加纳、刚果金、古巴","liaison":"","status":"跟进中","followup":[{"date":"2026.7.7","text":"钣金款样机发往非洲，客户返响不错，下个月回国，估计会返单。非洲市场看重价格，低价才有优势。"},{"date":"2026.7.31","text":"钣金款非洲客户反馈跟进，8月份回国；1200W新品资料和报价出来，就发给王总"}],"quotes":[],"latestQuote":"","note":"","tags":["已入库·跟进中","已发货"]},{"id":"c4","name":"东莞市易利特新能源有限公司","category":"已入库·跟进中","region":"非洲","targetProduct":"","companyInfo":"东莞市易利特新能源有限公司； 91441900MA5136WL54；成立时间 2017年12月01日；注册资本 1000万人民币；占地面积：7200平方米；法定代表人 邓桂超；广东省东莞市清溪镇青湖东路55号力合紫荆科创中心工业厂房6栋2单元；所属行业 电气机械和器材制造业；\n公司是以储能及动力锂电池成组研发、设计、生产、销售及服务为主营业务的创新型高科技企业，主要产品包括：移动储能、家庭储能；各类车辆电池包：警车、矿车、机械车、AGV小车、叉车、平衡车、三轮车、轮椅车、轮船用电池包；电池管理系统（BMS）；充电系统、热管理系统；通信电源、UPS、路灯电池组。经营范围\n研发、设计、制造、销售、维修：电池组及系统集成、储能产品、充电产品、电子产品、锂电池保护板、电池管理系统、电机智能控制器、检测设备；新能源技术开发与服务；软件开发及销售；批发业、零售业；货物及技术进出口（以上不含危险化学品）","contact":"邓桂深","phone":"17722387179","address":"东莞市清溪镇青湖东路55号紫荆科创中心工业厂房6栋2单元货梯3楼","market":"尼日利亚","liaison":"麦米杨言乐","status":"跟进中","followup":[{"date":"2026.8.25","text":"50套物料发货"},{"date":"2026.8.17","text":"50套物料合同已盖章，正在确认付款时间"},{"date":"2026.7.6","text":"询问前期的样品报价，没有回复"},{"date":"2026.7.28","text":"国内10台样机测试认证，通过率很低，需要整改很多东西"}],"quotes":[],"latestQuote":"","note":"","tags":["已入库·跟进中","已发货"]},{"id":"c5","name":"煜邦智源科技（嘉兴）有限公司","category":"已入库·跟进中","region":"非洲","targetProduct":"","companyInfo":"煜邦智源科技（嘉兴）有限公司成立于2023年7月28日，法定代表人为周德勤，注册地址位于浙江省嘉兴市海盐县武原街道东海大道6066号1#厂房，经营状态为【存续】，注册资本10000万元。该企业是A股上市公司北京煜邦电力技术股份有限公司（股票代码：688597）的控股子公司，为江苏省储能行业协会副理事单位，专注于电力储能领域，主营电池制造、储能技术服务、输配电及控制设备研发生产等业务，掌握构网型储能系统电力电子控制核心专利技术，在浙江海盐设有生产基地，南京设有研发营销中心，海外布局覆盖东南亚、欧洲等区域，可为客户提供储能全维度解决方案与服务。北京煜邦电力技术股份有限公司 66% 6600万元 ；嘉兴瑞源永誉企业管理合伙企业（有限合伙） 26% 2600万元 ；王嘉乐 8% 800万元。","contact":"秦璐","phone":"13927435253","address":"浙江省嘉兴市海盐县武原街道丰潭路，秦璐，13927435253","market":"尼日利亚","liaison":"杨HX","status":"跟进中","followup":[{"date":"2026.8.25","text":"沟通战略合作协议、询问客户上一批货是否发往海外"},{"date":"2026.8.17","text":"尾款已付，正在货拉拉发货"},{"date":"2026.7.6","text":"大货丝印logo确认"},{"date":"2026.7.31","text":"今天客户采购开始走付款流程，付款时间待定，预计要一周时间，天天催采购流程"},{"date":"2026.7.28","text":"上海港/尼日利亚拉各斯港/外箱贴/和采购提出申请尾款"},{"date":"2026.7.24","text":"确认出货港，办理危包证"},{"date":"2026.7.20","text":"工厂组装中，预计下周申请危包证"},{"date":"2026.7.14","text":"麦米PD板今天上线生产"}],"quotes":[],"latestQuote":"","note":"","tags":["已入库·跟进中","已发货"]},{"id":"c6","name":"苏州贝安新能源有限公司","category":"已入库·跟进中","region":"美洲","targetProduct":"","companyInfo":"苏州贝安新能源有限公司成立于2017年10月26日，法定代表人为孙宏伟，注册地址位于苏州工业园区唯新路60号38栋517室，经营状态为【存续】，注册资本300万人民币。该公司获评江苏省、苏州市创新型中小企业，业务涵盖新能源原动设备制造销售、电池制造批发、照明器具及电力电子元器件生产销售、配电开关控制设备研发制造，同时提供新兴能源技术研发、节能管理服务，开展货物及技术进出口等相关业务，专注于新能源及能源管理领域综合服务。孙宏伟 80% 240万元；程天佑 20% 60万元。","contact":"苏总","phone":"0512-65107073","address":"苏州工业园区唯新路60号","market":"美国","liaison":"","status":"跟进中","followup":[{"date":"2026.7.6","text":"3600W样品海运中/开发票"},{"date":"2026.7.31","text":"1200W新品资料，欧美市场，客户觉得外观OK"},{"date":"2026.7.28","text":"300W和500W规格书、报价单发送"},{"date":"2026.7.14","text":"发送300W和500W产品资料，欧美气温太高，市场抢购小功率储能电源，询问欧美客户是否有类似需求"}],"quotes":[],"latestQuote":"","note":"","tags":["已入库·跟进中","已发货"]},{"id":"c7","name":"江西华阳新能源有限公司","category":"已入库·跟进中","region":"亚洲/大洋洲","targetProduct":"","companyInfo":"江西华阳新能源有限公司成立于2017年5月12日，法定代表人为邱小华，注册地址位于江西省上饶经济技术开发区福事特大道西侧、光伏路南侧，经营状态为【存续】，注册资本5000万人民币。该企业是专注于锂电池储能系统的研发、设计、生产、销售一体化高新技术企业，业务覆盖户用储能、工商业储能、集装箱储能、太阳能光伏组件等领域，配备30000多平方智能化制造基地，产品远销海内外，经营期限至2037年5月11日。股权由邱小华、胡美兰二人分别持股80%、20%","contact":"邵丹丹","phone":"13774654871","address":"江西省上饶经济技术开发区福事特大道西侧、光伏路南侧","market":"菲律宾","liaison":"","status":"跟进中","followup":[{"date":"2026.8.17","text":"发送了组装视频，目前客户完成一台的组装，正在测试中"}],"quotes":[{"date":"2026.8.3","name":"eCandlePro套料","qty":"2","priceCny":"740","priceUsd":"","retail":"","client":"江西华阳新能源有限公司"}],"latestQuote":"eCandlePro套料 2 ¥740","note":"","tags":["已入库·跟进中","已发货"]},{"id":"c8","name":"盐城国投中科新能源科技有限公司","category":"已入库·跟进中","region":"国内","targetProduct":"","companyInfo":"盐城国投中科新能源科技有限公司成立于2017年12月27日，法定代表人为沈中华，注册地址位于江苏省盐城市盐都区盐龙街道纬八路北侧华锐路西侧，经营状态为【存续】，注册资本5000万人民币，实缴资本2550万元。该企业隶属于盐城国投集团高新科技板块，是专注于锂电池系统研发、生产、销售及服务的高新技术企业，主营产品覆盖电动汽车动力电池、电源管理系统（BMS）、储能领域锂电池产品，应用于轨道交通、新能源汽车、港口机械、5G基站等场景，拥有71项专利技术，2025年获评省级知识产权管理贯标绩效评价合格单位，2026年一季度实现产值3400万元，订单规模超亿元。","contact":"陈春江","phone":"13914606021","address":"江苏省 盐城市 盐都区恒力大道10号国投中科","market":"","liaison":"","status":"跟进中","followup":[{"date":"2026.8.17","text":"根据1K订单的进度"}],"quotes":[{"date":"2026.8.5","name":"eCandle套料","qty":"1K","priceCny":"560","priceUsd":"","retail":"","client":"盐城国投中科"},{"date":"2026.9.3","name":"eCandle","qty":"","priceCny":"1020","priceUsd":"","retail":"","client":"盐城国投中科"},{"date":"","name":"eCandlePro","qty":"","priceCny":"1120","priceUsd":"","retail":"","client":"盐城国投中科"},{"date":"","name":"eCandle套料","qty":"95","priceCny":"585","priceUsd":"","retail":"","client":"盐城国投中科"},{"date":"","name":"eCandlePro套料","qty":"100","priceCny":"685","priceUsd":"","retail":"","client":"盐城国投中科"}],"latestQuote":"eCandle  ¥1020","note":"","tags":["已入库·跟进中","已发货"]},{"id":"c9","name":"广东富登科技有限公司","category":"已入库·跟进中","region":"国内","targetProduct":"","companyInfo":"广东富登科技有限公司成立于2021年4月13日，法定代表人为陈治国，注册地址位于广东省惠州市，经营状态为【存续】，注册资本500万人民币。该企业是集生产、研发与销售于一体的高新技术企业，拥有自有品牌“FOXSKY（富登）”，主营户外储能、移动电源等电子产品，工厂占地面积约8000平方米，配备8条专业生产线，产品通过ISO9001、UL、BSCI等多项权威认证，客户覆盖中国、亚太、欧美等多个地区，2025年研发投入占比达9.8%，2025年订单规模超3亿元。陈治国 80% 400万元；邹宪辉 20% 100万元","contact":"陈治国","phone":"13823270748","address":"深圳市龙岗区坂田街道天安云谷产业园一期3栋B座9层901-2号，陈治国138 2327 0748","market":"欧美电商","liaison":"","status":"跟进中","followup":[],"quotes":[{"date":"2026.7.30","name":"eCandle套料","qty":"2","priceCny":"220","priceUsd":"","retail":"","client":"广东富登科技"},{"date":"","name":"eCandle套料","qty":"1","priceCny":"195","priceUsd":"","retail":"","client":"广东富登科技"},{"date":"2026.8.31","name":"eCandle3","qty":"1K","priceCny":"1100","priceUsd":"","retail":"","client":"广东富登科技"}],"latestQuote":"eCandle3 1K ¥1100","note":"","tags":["已入库·跟进中"]},{"id":"c10","name":"深圳市方向电气技术有限公司","category":"已入库·跟进中","region":"非洲","targetProduct":"","companyInfo":"深圳市方向电气技术有限公司是一家成立于2009年9月15日的有限责任公司，位于深圳市南山区，主要从事电气设备及相关产品销售与技术开发。深圳市南山区南海大道西桂庙路北阳光华艺大厦1栋4楼4D12。经营范围\n办公设备及耗材销售；蓄电池及配电产品销售；电力设备、电气设备、高能锂电池及其配件、电动工具购销；\n太阳能发电和照明应用系统及配件的技术开发、产品购销及相关技术咨询","contact":"周总","phone":"18038183112","address":"南山区粤海街道海天二路12号软件园产业基地6栋512室","market":"南非","liaison":"","status":"跟进中","followup":[{"date":"2026.7.8","text":"发新版500W规格书/没回复"},{"date":"2026.7.16","text":"发新版500W宣传彩页"}],"quotes":[],"latestQuote":"","note":"","tags":["已入库·跟进中","已发货"]},{"id":"c11","name":"东莞市锂德新能源有限公司","category":"已入库·跟进中","region":"亚洲/大洋洲","targetProduct":"","companyInfo":"东莞市锂德新能源有限公司成立于2022年10月18日，法定代表人为龙贵生，注册地址位于广东省东莞市凤岗镇金麒路1号5栋901室。该企业是集研发、生产、销售服务于一体的光伏储能系统高科技制造商，经营范围涵盖电池制造销售、储能技术服务、新能源技术研发、货物及技术进出口等领域，旗下拥有Odipie商标，产品覆盖家用储能电池组、工商业微电网系统等，研发投入占销售额9.8%，产品质量由中国平安保险集团承保。","contact":"易斌","phone":"15920697272","address":"东莞市凤岗镇金麒路1号5栋9楼金麒智能制造科技园","market":"越南","liaison":"","status":"跟进中","followup":[{"date":"2026.8.25","text":"25台订单付款跟进"},{"date":"2026.8.17","text":"25台样机，950客户要求一定要配A-的电芯"},{"date":"2026.7.6","text":"发新版500W规格书/上一单客户目前没有不良反馈"},{"date":"2026.7.28","text":"询问订单进展/终端客户没下单"},{"date":"2026.7.20","text":"客户需求300W报价，正常报价"},{"date":"2026.7.14","text":"跟进上次欧美订单，询问客户近期的需求，反馈价格竞争激烈，已发新版规格书和宣传单页"}],"quotes":[],"latestQuote":"","note":"","tags":["已入库·跟进中","已发货"]},{"id":"c12","name":"深圳莱希特电子有限公司","category":"已入库·跟进中","region":"非洲","targetProduct":"","companyInfo":"深圳莱希特电子有限公司成立于2013年，位于深圳福田，经营状态为【存续】，注册资本100万人民币。该企业是专注于电子科技产品研发与销售、新能源设备及二类专业医疗器械贸易的有限责任公司，主营日用品、清洁用品及电子产品批发与进出口，并提供国内贸易服务，兼具实业投资能力，在电子及新能源领域展现出较强的市场活力与竞争力。陈丰加 70% 70万元；林静 30% 30万元。主营电子产品、新能源设备、医疗器械贸易及相关进出口业务","contact":"林小姐","phone":"13530515253","address":"深圳市华强北赛格通讯市场，林总，13530515253","market":"非洲、东南亚、拉美、乌克兰","liaison":"","status":"跟进中","followup":[{"date":"2026.8.17","text":"加纳客户需要一份盖章的电芯售后质保文件"},{"date":"2026.7.7","text":"发新版500W规格书/宣传单页"},{"date":"2026.7.6","text":"询问市场情况，老外客户拍照"},{"date":"2026.7.31","text":"确定拜访时间，介绍1200W新品"},{"date":"2026.7.28","text":"最近华强北查货很严重，电池类的产品都需要3C认证，只展示机模"},{"date":"2026.7.14","text":"3600W经常出现无输出的情况。负载是 有 4 台电脑、 1 台打印机以及安全摄像头与不间断电源系统相连。在正常运转状态下，总负载量约为 600 瓦。当打印机正在打印时，负载会短暂上升至约 1400 瓦，但从未超过 1.6 千瓦。解决办法：如果所以设备都在一个排插上，需要考虑一下排插的输出功率，出现这样的情况，可能是机器保护机制启动。让客户将电脑和打印机换个排插试一下。看看还有没有类似的情况"}],"quotes":[],"latestQuote":"","note":"","tags":["已入库·跟进中","已发货"]},{"id":"c13","name":"广东瑞浦兰钧能源有限公司","category":"已入库·跟进中","region":"国内","targetProduct":"","companyInfo":"广东瑞浦兰钧能源有限公司成立于2021年，注册资本8.5亿元，位于广东佛山，经营状态为【存续】。该公司主营锂离子电池制造及新兴能源技术研发，业务涵盖电池制造与销售、智能输配电设备研发生产，并提供相关技术服务及租赁服务，在能源领域具备较强的行业竞争优势。公司由瑞浦兰钧能源股份有限公司持股88.24%、温州乾石矿业科技合伙企业(有限合伙)持股11.76%","contact":"高永祥","phone":"0755-86655000","address":"广东省佛山市南海区狮山镇文笔路9号一期","market":"","liaison":"","status":"跟进中","followup":[{"date":"2026.7.14","text":"5台样机，客供电芯，单价650，丝印logo白色，中规电源线，预计这周交货"}],"quotes":[{"date":"2026.7.14","name":"eCandle","qty":"5","priceCny":"650","priceUsd":"","retail":"","client":"广东瑞浦兰钧能源有限公司"}],"latestQuote":"eCandle 5 ¥650","note":"","tags":["已入库·跟进中","已发货"]},{"id":"c14","name":"aitos.Io.Pte.Ltd.","category":"已入库·跟进中","region":"国内","targetProduct":"","companyInfo":"","contact":"许刚","phone":"13621998104","address":"上海市普陀区真光路1433弄5号702室","market":"","liaison":"","status":"跟进中","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["已入库·跟进中","已发货"]},{"id":"c15","name":"海南汇能汇电科技有限公司","category":"已入库·跟进中","region":"非洲","targetProduct":"","companyInfo":"","contact":"Jessica卡姐","phone":"","address":"海南省海口市龙华区大同街道义龙西路21号侨汇大厦15-173室","market":"加纳/刚果金","liaison":"Jessica卡姐","status":"跟进中","followup":[{"date":"2026.7.8","text":"发新版500W规格书，新版报价单确定再发给她/目前人在加纳，加纳市场对产品价格敏感，卡姐会给一个相似规格的当地市场价，仅供参考"},{"date":"2026.7.28","text":"加纳、刚果金合作模式和报价/前期先类似代理模式，代理价格，每周/月回款"},{"date":"2026.7.20","text":"Jessica同步了加纳和刚果金的物流运费"},{"date":"2026.7.14","text":"发送500W宣传彩页"}],"quotes":[],"latestQuote":"","note":"","tags":["已入库·跟进中","已发货"]},{"id":"c16","name":"东莞美盛数字能源技术有限公司","category":"已入库·跟进中","region":"亚洲/大洋洲","targetProduct":"","companyInfo":"成立于2026-01-14；所属行业为科技推广和应用服务业，经营范围包含：一般项目：新兴能源技术研发；电池销售；新能源原动设备销售；新能源汽车生产测试设备销售；新能源汽车整车销售；机械电气设备销售；半导体照明器件销售；半导体器件专用设备销售；光伏设备及元器件销售；灯具销售；电动自行车销售；工程和技术研究和试验发展；新材料技术研发；人工智能应用软件开发；日用家电零售；家用电器销售；家用电器零配件销售；照明器具销售；电子产品销售；电器辅件销售；电力电子元器件销售；电子元器件零售；电子元器件与机电组件设备销售；电力设施器材销售；集成电路销售；电子专用材料销售；家用电器研发；泵及真空设备销售；制冷、空调设备销售；金属丝绳及其制品销售；金属结构销售；金属制品销售；汽车零配件批发；汽车零配件零售；技术玻璃制品销售；光学玻璃销售；日用玻璃制品销售；功能玻璃和新型光学材料销售；太阳能发电技术服务；货物进出口；技术进出口","contact":"吴伟","phone":"13825723512","address":"广东省东莞市麻涌镇水乡大道麻涌段5号1栋801室","market":"中东","liaison":"吴伟","status":"跟进中","followup":[],"quotes":[{"date":"2026.8.31","name":"eCandlePro套料","qty":"1K","priceCny":"97.5","priceUsd":"","retail":"","client":"东莞美盛数字能源技术有限公司"},{"date":"","name":"eCandlePro样机","qty":"1","priceCny":"1100","priceUsd":"","retail":"","client":"东莞美盛数字能源技术有限公司"}],"latestQuote":"eCandlePro套料 1K ¥97.5","note":"","tags":["已入库·跟进中","已发货"]},{"id":"c17","name":"李源","category":"已入库·跟进中","region":"非洲","targetProduct":"","companyInfo":"","contact":"李源","phone":"","address":"","market":"肯尼亚、赞比亚、非洲","liaison":"李源","status":"跟进中","followup":[{"date":"2026.7.31","text":"目前在赞比亚，会去寻找一些储能的资源"}],"quotes":[],"latestQuote":"","note":"","tags":["已入库·跟进中"]},{"id":"c18","name":"合计","category":"已入库·跟进中","region":"国内","targetProduct":"","companyInfo":"","contact":"","phone":"","address":"","market":"","liaison":"","status":"跟进中","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["已入库·跟进中"]},{"id":"c19","name":"深圳广进环宇科技有限公司","category":"不活跃/潜在","region":"欧洲","targetProduct":"","companyInfo":"","contact":"朱小姐","phone":"13760145835","address":"华强北工艺大厦1栋636","market":"乌克兰、伊朗","liaison":"","status":"待跟进","followup":[{"date":"2026.7.16","text":"发新版500W规格书"}],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c20","name":"风华鸣金&昇藤微电","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"刘峥峰","phone":"18603031179","address":"深圳市宝安区松岗佳裕大厦708-709","market":"","liaison":"刘峥峰","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c21","name":"东莞市三鼎新能源科技有限公司","category":"不活跃/潜在","region":"亚洲/大洋洲","targetProduct":"","companyInfo":"","contact":"谢国文","phone":"18666888800","address":"广东省东莞市塘厦镇莆心湖中心一路14号","market":"菲律宾","liaison":"刘峥峰","status":"待跟进","followup":[{"date":"2026.7.16","text":"发新版500W宣传彩页，发给海外客户"},{"date":"2026.7.14","text":"客户保存不当，2个外箱破损补发。10台样品要发往尼日利亚"}],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c22","name":"东莞五拾科技有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"沈正斌","phone":"15012761240","address":"东莞市常平镇中极能源（东莞）有限公司D栋3楼中极能源，陈志勇，16620653776","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c23","name":"广州一变电气设备有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"毕建国","phone":"18688661966","address":"广州市番禺区石基镇前锋北路9号","market":"","liaison":"","status":"待跟进","followup":[{"date":"2026.7.8","text":"发新版500W规格书/没回复"},{"date":"2026.7.16","text":"发新版500W宣传彩页"}],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c24","name":"广州中普新能源有限公司 深圳顶呱呱","category":"不活跃/潜在","region":"亚洲/大洋洲","targetProduct":"","companyInfo":"","contact":"王建坤","phone":"13751079108","address":"广州市南沙区南江二路5号丽晶湾科技孵化园B座4楼","market":"菲律宾","liaison":"","status":"待跟进","followup":[{"date":"2026.7.7","text":"已询问500W光伏板的搭配，有400W和500W光伏板，等发送产品规格和报价"},{"date":"2026.7.6","text":"发新版500W规格书"},{"date":"2026.7.16","text":"发新版500W宣传彩页"}],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c25","name":"泰州市国锋新能源科技有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"单世高","phone":"17712927700","address":"泰州市海陵区九龙镇马楼路84号办公楼第二层","market":"","liaison":"","status":"待跟进","followup":[{"date":"2026.7.6","text":"发新版500W规格书"}],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c26","name":"深圳市渴电新能源有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"刘先生","phone":"13538264559","address":"南山区桃源街道平山社区留仙大道4093号南山云谷创新产业园南风楼A座106","market":"","liaison":"Gary","status":"待跟进","followup":[{"date":"2026.7.7","text":"发新版500W规格书"}],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c27","name":"深圳深源技术能源有限公司","category":"不活跃/潜在","region":"亚洲/大洋洲","targetProduct":"","companyInfo":"","contact":"项小姐","phone":"13528721706","address":"深圳市宝安区石岩街道塘头一号路创维创新谷5号楼D#301","market":"巴基斯坦、俄罗斯","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c28","name":"深圳市元鹰科技有限公司","category":"不活跃/潜在","region":"亚洲/大洋洲","targetProduct":"","companyInfo":"","contact":"曹锡伟","phone":"13316922931","address":"深圳市宝安区福永街道怀德社区广深路福永段73号怀德国际大厦1802","market":"俄罗斯","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c29","name":"深圳伟创益光伏技术有限公司","category":"不活跃/潜在","region":"非洲","targetProduct":"","companyInfo":"","contact":"翟建刚","phone":"13342966416","address":"宝安区石岩街道石龙仔惠科工业园三栋三楼","market":"尼日利亚","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c30","name":"深圳市向阳新能源科技有限公司","category":"不活跃/潜在","region":"非洲","targetProduct":"","companyInfo":"","contact":"赵红丽","phone":"18617100541","address":"宝安区航城街道鹤洲社区洲石路739号恒丰工业园C6栋综合楼1501A","market":"坦桑尼亚","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c31","name":"深圳市易阳旨新能源科技有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"刘先生","phone":"18603031179","address":"宝安区沙井街道沙坣三路47号3楼","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c32","name":"广东思诺伟智能技术有限公司","category":"不活跃/潜在","region":"非洲","targetProduct":"","companyInfo":"","contact":"李浩","phone":"","address":"东莞市清溪镇清樟路清溪路段馥通产业园5栋2单元301","market":"刚果金","liaison":"Jessica卡姐","status":"待跟进","followup":[{"date":"2026.7.8","text":"发新版500W规格书，新版报价单确定再发给她/目前人在加纳，加纳市场对产品价格敏感，卡姐会给一个相似规格的当地市场价，仅供参考"},{"date":"2026.7.20","text":"Jessica同步了加纳和刚果金的物流运费"},{"date":"2026.7.14","text":"发送500W宣传彩页"}],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c33","name":"犇拓新能源（深圳）有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"文小姐","phone":"18075992357","address":"深圳市宝安区航城街道九围社区竹角宏发创新园2栋4层","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c34","name":"广州丰久新能源有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"梁小姐","phone":"13728406075","address":"广州市白云区云城西路228创意园F栋2楼","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c35","name":"广东创丰新能源科技有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"许文琦","phone":"13128557666","address":"广东省珠海市金湾区三灶镇胜利路113号","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c36","name":"山东润旭企业服务有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"王谦","phone":"13963273772","address":"山东省枣庄市滕州市荆河街道威尼斯商务大厦15楼1503室","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c37","name":"长沙广大新能源科技有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"姜苗苗","phone":"13203135006","address":"长沙经济技术开发区星沙产业基地蓝田北路1号梦工厂工业配套园C1栋510室","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c38","name":"广东北能新能源有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"金小姐","phone":"13377721775","address":"东莞市黄江镇黄京坑东吴科学园5栋13楼","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c39","name":"江苏恒沃","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"张敏","phone":"13921226171","address":"江苏省苏州市吴中区郭巷街道吴淞江大道111号天运广场3幢5号楼9层905室","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c40","name":"东莞市华麒电子有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"吴先生","phone":"13544299390","address":"东莞市塘厦镇古寮二路1号4栋201室","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c41","name":"深圳市誉源通科技有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"章先生","phone":"0755-2609056","address":"宝安区西乡街道航城大道172号安乐工业园A1栋601","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c42","name":"永康市深伟业科技有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"后国清","phone":"13620002021","address":"浙江省金华市永康市经济开发区东吴路467号3号厂房","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c43","name":"东莞市嘉洋电池有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"任双松","phone":"18617003767","address":"广东省东莞市大岭山镇马蹄岗村沙井头路11号","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c44","name":"珠海初态新能源有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"杨丹","phone":"15220902501","address":"珠海市香洲区唐家湾镇金鼎港湾七号智造超级工厂A4栋8楼电话，杨丹15220902501","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c45","name":"陕西明浩睿能电气科技有限公司","category":"不活跃/潜在","region":"亚洲/大洋洲","targetProduct":"","companyInfo":"陕西明浩睿能电气科技有限公司成立于2023-03-31，法定代表人为李德军，注册资本为400万元，统一社会信用代码为91610492MACCA76L39，企业注册地址位于陕西省咸阳市高新技术产业开发区永昌路西北大学科技园15号楼7层701，所属行业为专业技术服务业，经营范围包含：一般项目：配电开关控制设备研发；物联网技术研发；在线能源监测技术研发；新兴能源技术研发；人工智能应用软件开发；软件开发；电力行业高效节能技术研发；技术服务、技术开发、技术咨询、技术交流、技术转让、技术推广；网络技术服务；数字技术服务；智能控制系统集成；节能管理服务；储能技术服务；计算机系统服务；人工智能通用应用系统；数据处理服务；软件外包服务；物联网应用服务；集成电路芯片设计及服务；家用电器销售；电气设备修理；充电桩销售；电气设备销售；仪器仪表销售；风力发电机组及零部件销售；先进电力电子装置销售；智能输配电及控制设备销售；国内贸易代理；光伏设备及元器件销售；电子元器件零售；电子元器件与机电组件设备销售；电气信号设备装置销售；电力电子元器件销售；电池销售；集成电路芯片及产品销售；软件销售；电子产品销售；网络设备销售；人工智能硬件销售；数字视频监控系统销售；货物进出口（除依法须经批准的项目外，凭营业执照依法自主开展经营活动）。企业当前经营状态为在业。","contact":"李德军","phone":"15349287170","address":"陕西省咸阳市高新技术产业开发区永昌路西段西北大学科技园15号楼701室","market":"越南","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c46","name":"广东省优锂达新能源科技有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"袁锦成","phone":"15811751974","address":"广东省佛山市顺德区均安镇畅兴工业园智安北路19号世友制造园2栋501","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c47","name":"深圳市银叶王科技有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"曾浩","phone":"18929389015","address":"深圳市龙岗区横岗街道六约社区宸和路22号","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c48","name":"广东国科电技术有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"广东国科电技术有限公司是一家从事设计服务,电池制造,电池销售等业务的公司，成立于2014年04月03日，参保人数12人(2024年报)，公司坐落在广东省，详细地址为：广州市南沙区黄阁镇四兴街7号301室05房;经国家企业信用信息公示系统查询得知，广东国科电技术有限公司的信用代码/税号为91440115304511416W，法人是何波，注册资本为500.000000万人民币，企业的经营范围为:专业设计服务;电池制造;电池销售;新能源汽车生产测试设备销售;新能源汽车换电设施销售;新能源汽车电附件销售;蓄电池租赁;新兴能源技术研发;技术服务、技术开发、技术咨询、技术交流、技术转让、技术推广;新能源原动设备制造;电子元器件与机电组件设备制造;电子元器件与机电组件设备销售;汽车零部件及配件制造;集成电路制造;电力电子元器件销售;光伏设备及元器件销售;货物进出口;技术进出口。曾获高新技术企业（2023）、省级专精特新企业、创新型中小企业等资质24。\n知识产权：拥有1个企业品牌项目，17个注册商标，19个专利信息，11个软件著作权，表明企业具备较强的实力和创新能力。","contact":"何波/王微","phone":"13660551717","address":"广州市南沙区黄阁镇四兴街7号301室05房","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c49","name":"深圳市慧鸣新能源有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"深圳市慧鸣新能源有限公司是一家从事电池销售,蓄电池租赁,梯次利用等业务的公司，成立于2021年12月16日，参保人数9人(2025年报)，公司坐落在广东省，详细地址为：深圳市龙岗区宝龙街道同心社区同德路204号同心科技201-6;经国家企业信用信息公示系统查询得知，深圳市慧鸣新能源有限公司的信用代码/税号为91440300MA5H5FT392，法人是谭平，注册资本为100.000000万人民币，企业的经营范围为:一般经营项目：电池销售；蓄电池租赁；新能源汽车废旧动力蓄电池回收及梯次利用（不含危险废物经营）；新能源汽车整车销售；新能源汽车电附件销售；新能源汽车换电设施销售；电子元器件批发；光伏设备及元器件销售；电子元器件零售；通讯设备修理；人工智能公共服务平台技术咨询服务；信息技术咨询服务；技术服务、技术开发、技术咨询、技术交流、技术转让、技术推广；资源循环利用服务技术咨询；居民日常生活服务；国内贸易代理；充电桩销售；海上风电相关装备销售。货物进出口；技术进出口。（除依法须经批准的项目外，凭营业执照依法自主开展经营活动）许可经营项目：电池制造；机械电气设备制造；汽车零部件及配件制造；配电开关控制设备制造；光伏设备及元器件制造；照明器具制造；电子元器件制造；电子元器件与机电组件设备制造；电子专用设备制造；输配电及控制设备制造。（依法须经批准的项目，经相关部门批准后方可开展经营活动，具体经营项目以相关部门批准文件或许可证件为准）。","contact":"Job Peng","phone":"18627376538","address":"深圳市龙岗区宝龙街道同心社区同德路204号同心科技201-6","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c50","name":"宁波德普新能源有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"宁波德普新能源有限公司是一家从事光伏设备制造,元器件制造,电池制造等业务的公司，成立于2023年02月02日，参保人数0人(2025年报)，公司坐落在浙江省，详细地址为：浙江省慈溪市龙山镇筋竹村三北路212-216号一幢;经国家企业信用信息公示系统查询得知，宁波德普新能源有限公司的信用代码/税号为91330282MAC6B7NQ2P，法人是闻国强，注册资本为1180.000000万人民币，企业的经营范围为:一般项目：太阳能发电技术服务；光伏设备及元器件制造；电池制造；电池销售；电池零配件生产；变压器、整流器和电感器制造；输配电及控制设备制造；光电子器件制造；光电子器件销售；储能技术服务；照明器具制造；灯具销售；电子元器件制造；电子元器件批发；电子元器件零售；塑料制品制造；塑料制品销售；五金产品制造；五金产品批发；五金产品零售；家用纺织制成品制造；产业用纺织制成品制造；产业用纺织制成品销售；针纺织品及原料销售；工程和技术研究和试验发展；货物进出口；进出口代理（除依法须经批准的项目外，凭营业执照依法自主开展经营活动）。许可项目：发电业务、输电业务、供（配）电业务（依法须经批准的项目，经相关部门批准后方可开展经营活动，具体经营项目以审批结果为准）。2024年12月取得便携式软性支撑柱生产切割装置专利","contact":"黄伟","phone":"15988615731","address":"浙江省慈溪市龙山镇筋竹村三北路212-216号1幢","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[{"date":"2026.9.3","name":"eCandlePro套料","qty":"1K","priceCny":"215","priceUsd":"","retail":"","client":"宁波德普"},{"date":"","name":"eCandlePro套料","qty":"2K","priceCny":"211","priceUsd":"","retail":"","client":"宁波德普"},{"date":"","name":"eCandlePro套料","qty":"3K","priceCny":"206","priceUsd":"","retail":"","client":"宁波德普"}],"latestQuote":"eCandlePro套料 1K ¥215","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c51","name":"青岛晨阳机械制造有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"青岛晨阳机械制造有限公司是一家从事关键系统销售,部件销售,高铁设备制造等业务的公司，成立于2007年05月29日，参保人数121人(2025年报)，公司坐落在山东省，详细地址为：山东省青岛市即墨区云水二路5号;经国家企业信用信息公示系统查询得知，青岛晨阳机械制造有限公司的信用代码/税号为91370282661279096N，法人是付甲森，注册资本为9000.000000万，企业的经营范围为:一般项目：轨道交通专用设备、关键系统及部件销售；高铁设备、配件制造；汽车零配件零售；电车制造；五金产品制造；汽车零部件研发；摩托车零配件制造；智能车载设备制造；通用设备制造（不含特种设备制造）；机械电气设备制造；喷涂加工；金属丝绳及其制品制造；纸制品制造；铸造机械制造；模具制造；模具销售；塑料制品制造；塑料制品销售；交通及公共管理用金属标牌制造；广告制作；环境卫生公共设施安装服务；第一类医疗器械生产。（除依法须经批准的项目外，凭营业执照依法自主开展经营活动）许可项目：货物进出口；技术进出口；道路货物运输（不含危险货物）。（依法须经批准的项目，经相关部门批准后方可开展经营活动，具体经营项目以相关部门批准文件或许可证件为准）。生产能力\n公司拥有200余台各类加工设备，包括立式加工中心、龙门加工中心、数控车床、瑞士原装进口6000W激光切割机、数控剪板机、数控折弯机、数控冲床、静电自动喷涂线、喷漆线、500T液压机、高速液压冲床、冷&热室压铸机等，年产值超过9000万元6。\n质量认证\n公司通过了多项国际认证，包括：\n德国莱茵TUV验厂\nISO9001质量体系认证\nISO14001环境管理体系认证\nOHSAS18001职业健康安全管理体系认证\nEN15085CL1轨道车辆焊接体系认证\nIATF16949汽车行业质量体系认证","contact":"任盼盼","phone":"13188956770","address":"山东省青岛市即墨区云水二路5号","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c52","name":"深圳市智寻信息技术有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"深圳市智寻信息技术有限公司是一家从事网络技术服务,通信技术服务,计算机软硬件服务等业务的公司，成立于2017年05月04日，公司坐落在广东省，参保人数61人(2024年报)。详细地址为：深圳市南山区西丽街道阳光社区松白路1029号南岗第一工业园9栋201;经国家企业信用信息公示系统查询得知，深圳市智寻信息技术有限公司的信用代码/税号为91440300MA5EH4E60T，法人是黄延华，注册资本为1200.000000万人民币，企业的经营范围为:网络技术、通信技术、计算机软硬件、卫星导航技术、物流与供应链管理技术、智能交通技术、智慧城市支撑技术、电子商务系统的研发、技术咨询、技术转让、技术服务；新能源技术咨询；从事信息技术和数据管理系统的安装以及信息系统的集成；提供企业信息系统解决方案；电子产品的研发、销售；从事货物及技术的进出口业务；国内贸易。（法律、行政法规、国务院决定禁止的项目除外，限制的项目须取得许可后方可经营）；共享自行车服务；软件开发；租赁服务（不含许可类租赁服务）；光伏发电设备租赁；运输设备租赁服务；蓄电池租赁；通信设备制造；移动通信设备制造；移动通信设备销售；计算机软硬件及外围设备制造；供应链管理服务；信息技术咨询服务；数据处理和存储支持服务；卫星导航服务；卫星导航多模增强应用服务系统集成；卫星移动通信终端制造；导航终端制造；导航终端销售；卫星移动通信终端销售；信息系统集成服务；卫星技术综合应用系统集成；国内贸易代理；充电桩销售；集中式快速充电站；机动车充电销售；充电控制设备租赁；电动汽车充电基础设施运营；五金产品制造。（除依法须经批准的项目外，凭营业执照依法自主开展经营活动）^第二类增值电信业务。（依法须经批准的项目，经相关部门批准后方可开展经营活动，具体经营项目以相关部门批准文件或许可证件为准）。主要业务与产品\n锂电池智能物联网管理系统和智慧BMS解决方案\n共享充换电柜：提供两轮电动车充换电业务的一站式运营解决方案，包括互联网软件、智能硬件开发和物联网应用运营\n北斗GPS定位终端及相关设备制造销售\n新能源运营中心系统\n充电桩销售、集中式快速充电站、电动汽车充电基础设施运营等\n核心技术与服务\n公司拥有强大的研发团队和创新实力，专门从事：\n锂电池租赁管理系统软件\n电池管理系统(BMS)\n锂电池远程控制系统\n锂电池共享充换电柜\n通信设备制造与销售\n行业定位与合作\n与国内数家企业提供锂电池智能物联网管理系统和智慧BMS的完美解决方案2\n智寻出行提供两轮电动车充换电业务的一站式运营解决方案，秉持开放态度，与友商共享生态，共同推进新能源安全管理、便捷绿色出行\n业务涉及新能源技术咨询、智能交通技术、智慧城市支撑技术、供应链管理服务等\n市场应用\n公司产品主要服务于外卖骑手和快递员等高频使用群体，这些群体是换电柜的核心使用群体，日均换电2-5次，换电柜布局重点区域包括外卖业务集中的商圈、写字楼、居民区等","contact":"张雪/采购","phone":"18938065436","address":"深圳市南山区西丽街道阳光社区松白路1029号南岗第一工业园9栋201","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c53","name":"安徽羚一储能科技有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"安徽羚一储能科技有限公司是一家从事工程发展,技术研究,试验发展等业务的公司，成立于2023年12月22日，法定代表人：周谢军，同时担任财务负责人、执行董事兼总经理，参保人数6人(2025年报)。公司坐落在安徽省，详细地址为：安徽省蚌埠市五河县城关镇青年南路五河中小产业园内1号楼;经国家企业信用信息公示系统查询得知，安徽羚一储能科技有限公司的信用代码/税号为91340322MAD73G1F6U，法人是周谢军，注册资本为2001.000000万人民币，企业的经营范围为:一般项目：工程和技术研究和试验发展；电池制造；电池销售；储能技术服务；充电桩销售；软件开发；软件销售；人工智能应用软件开发；可穿戴智能设备销售；计算机软硬件及辅助设备零售；电子产品销售；智能无人飞行器销售；智能机器人的研发；农业机械制造；农业机械销售；农林牧副渔业专业机械的制造；农、林、牧、副、渔业专业机械的销售；农林牧渔机械配件销售；风动和电动工具制造；风动和电动工具销售；货物进出口。业务领域：公司专注于提供绿色新能源动力和储能系统解决方案和产品，主要产品包括：\n电动自行车、两轮电动车、三轮电动车、老年电动代步车、电动观光车和电动高尔夫球车用锂电池组\n储能电源、户外移动电源和房车专用电源\n电动叉车、电动堆高车和AGV自动搬运车等物流设备专用锂电池组\n各类电动工具以及割草机锂电池组\n技术实力\n知识产权：拥有1项实用新型专利，包括\"一种锂电池组装用夹具\"（授权公告号CN222155383U）和\"一种蓄能电池包盖帽自动上料压合装置\"（授权公告号CN222168474U），均于2024年3月申请，12月获得授权。\n资质认证：产品符合国际权威机构环保要求和安规标准，取得RoHS、SGS、REACH等环保认证和UL、CE等安规认证\n其他资质：通过企知道大数据分析，公司拥有商标1个、软件著作权6项，共拥有资质证书1个\n行业定位\n公司属于电气机械和器材制造业，在2025年年报中被归类为制造业电气机械和器材制造业","contact":"周总","phone":"18033444331","address":"安徽省蚌埠市五河县城关镇青年南路五河中小产业园内1号楼","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c54","name":"福建鸿进达智能科技有限公司","category":"不活跃/潜在","region":"美洲","targetProduct":"","companyInfo":"电芯:OCV测试设备、DCR测试设备；模组:低压绝缘测试设备、CMC测试设备EOL测试设备、气密测试设备、模组工况测试设备；Pack:EOL测试设备、气密测试设备Pack工况测试设备、储能电池簇工况测试、集装箱柜测试系统；其他:电机测试设备、非标自动化产线\n新能源测试设备及自动化方案解决商","contact":"刘自海","phone":"18050767023","address":"福建省闽侯县南屿镇智慧大道20号9号楼A座1楼","market":"北美市场","liaison":"销售副总经理","status":"待跟进","followup":[{"date":"2026.7.8","text":"2台110V样机备货中/宣传单页、图片"},{"date":"2026.7.31","text":"2台样机目前还没到美国客户手上"},{"date":"2026.7.14","text":"110V主板预计今天发货，预计这周交货"},{"date":"2026.7.10","text":"1020样品价/大货价920"}],"quotes":[{"date":"2026.7.10","name":"eCandle","qty":"样品","priceCny":"1020","priceUsd":"","retail":"","client":"福建鸿进达智能科技有限公司"},{"date":"","name":"eCandle","qty":"大货","priceCny":"920","priceUsd":"","retail":"","client":"福建鸿进达智能科技有限公司"}],"latestQuote":"eCandle 样品 ¥1020","note":"","tags":["不活跃/潜在","已发货"]},{"id":"c55","name":"四川生孚科技有限公司","category":"不活跃/潜在","region":"非洲","targetProduct":"","companyInfo":"四川生孚科技有限公司成立于2020年10月9日，注册地位于成都市天府新区，所属行业为研究和试验发展\n法定代表人：罗耀勇；注册资本1000万元；91510100MA6BUK460A；成都市天府新区华阳街道南湖大道360号24栋1层3号；一般项目：技术服务、技术开发、技术咨询、技术交流、技术转让、技术推广；工程和技术研究和试验发展；软件开发；集成电路设计；电线、电缆经营；电力设施器材销售；新能源原动设备销售；特种设备销售；光伏设备及元器件销售；电池销售；五金产品零售；货物进出口；技术进出口；专用设备制造（不含许可类专业设备制造）【分支机构经营】；电子（气）物理设备及其他电子设备制造【分支机构经营】；输配电及控制设备制造【分支机构经营】；非金属矿物材料成型机械制造【分支机构经营】；电机制造【分支机构经营】；仪器仪表制造【分支机构经营】；电力设施器材制造【分支机构经营】；电子专用材料制造【分支机构经营】；电子元器件制造【分支机构经营】；照明器具制造【分支机构经营】；智能家庭消费设备制造【分支机构经营】；家用电器制造【分支机构经营】。（除依法须经批准的项目外，凭营业执照依法自主开展经营活动）","contact":"罗麟","phone":"18113185891","address":"成都市天府新区华阳街道南湖大道360号24栋1层3号","market":"尼日利亚","liaison":"麦米魏章林","status":"待跟进","followup":[{"date":"2026.8.17","text":"4G月租版报价：1380；终端客户反馈价格高"},{"date":"2026.7.9","text":"500W不含电芯780/定制款，危包证、UN38.3副证"},{"date":"2026.7.31","text":"非洲客户那边提出尾款要4个月的账期，公司正在协商"},{"date":"2026.7.28","text":"和采购确认订单，客户还在布置装箱，提议客户先快递一个电芯来组装测试"},{"date":"2026.7.20","text":"订单进展/120台/本周合同"},{"date":"2026.7.16","text":"在走费用流程，成本预算在核对，应该7.28决定；货大概10月中下旬海运"},{"date":"2026.7.14","text":"500W2款各75台，塑胶款780/钣金款750，客户做合同中"},{"date":"2026.7.10","text":"客户正在模拟40尺柜装货情况，预计这两天可以确定数量；客户反馈780价格有点高"}],"quotes":[{"date":"2026.7.10","name":"eCandlePro","qty":"75","priceCny":"780","priceUsd":"","retail":"","client":"四川生孚科技有限公司"},{"date":"","name":"eCandle3","qty":"75","priceCny":"730","priceUsd":"","retail":"","client":"四川生孚科技有限公司"},{"date":"2026.8.19","name":"eCandle 4G","qty":"","priceCny":"1380","priceUsd":"","retail":"","client":"四川生孚科技有限公司"}],"latestQuote":"eCandle 4G  ¥1380","note":"","tags":["不活跃/潜在"]},{"id":"c56","name":"斯特尼奥科技(深圳)有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"斯特尼奥科技（深圳）有限公司成立于2019年12月31日，法定代表人陈姿静，注册资本及实缴资本均为200万元人民币，注册地址深圳市龙岗区龙城街道盛平社区龙平西路4号中天信B厂区厂房5层503。企业类型为有限责任公司，属软件和信息技术服务业，2024年参保人数38人，获评高新技术企业、科技型中小企业和A级纳税人资质 。主营业务涵盖计算机软件研发、信息系统集成、集成电路设计及新能源设备制造等领域。截至2025年拥有10项专利及39项软件著作权，涉及PCBA检测装置、新能源电池焊接工装等技术领域。","contact":"李军","phone":"18929347845","address":"深圳市龙岗区中心城龙平西路志达工业园B区5楼","market":"","liaison":"","status":"待跟进","followup":[{"date":"2026.7.9","text":"新版报价，客户考虑中"},{"date":"2026.7.7","text":"发新版500W规格书/客户下午和同事确认具体需求"},{"date":"2026.7.28","text":"公司在龙岗，这周客户在审厂，下周再约拜访时间"}],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在"]},{"id":"c57","name":"深圳市雷欧电源实业有限公司","category":"不活跃/潜在","region":"美洲","targetProduct":"","companyInfo":"深圳市雷欧电源实业有限公司成立于2004年2月20日，法定代表人为卢军文，注册地址位于深圳市南山区桃源街道平山社区留仙大道4093号南山云谷创新产业园综合服务楼720，经营状态为【存续】，注册资本1000万人民币。该企业是专注于清洁能源领域的高新技术企业，拥有自主品牌“MOTOMA”，主营A级干电池、聚合物锂电池、磷酸铁锂电池及太阳能系统的研发与制造，产品应用于电动车、储能系统、消费电子等领域，拥有2万余平方米生产基地，近400名员工，产品通过UL、CE、ISO9001等多项认证，销售渠道覆盖全球60余个国家，2023年获评国家级高新技术企业、省级创新型中小企业，2025年入选国家级科技型中小企业。卢军文 65% 650万元；许倩 35% 350万元。为国家级高新技术企业，产品通过多项国际认证，市场覆盖全球60余国","contact":"丁洁","phone":"13530235676","address":"深圳市南山区桃源街道留仙大道4093号南山云谷创新产业园综合服务楼720","market":"南美-秘鲁-欧规","liaison":"麦米肖春明","status":"待跟进","followup":[{"date":"2026.8.17","text":"发送了产品画册，看下客户有什么需求"},{"date":"2026.7.28","text":"询问订单进展，目前终端客户没有回复"},{"date":"2026.7.16","text":"性能单+危包证1000元；50台，灰色丝印logog，欧规，单价980元。申请支持一次，后面按照订单需要按照MOQ来"}],"quotes":[{"date":"2026.7.15","name":"eCandle","qty":"样品","priceCny":"980","priceUsd":"","retail":"","client":"深圳市雷欧电源实业有限公司"},{"date":"","name":"eCandle","qty":"大货2K","priceCny":"980","priceUsd":"","retail":"","client":"深圳市雷欧电源实业有限公司"}],"latestQuote":"eCandle 样品 ¥980","note":"","tags":["不活跃/潜在"]},{"id":"c58","name":"溢禾升(杭州)新能源科技有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"海外市场总监","contact":"韦涛","phone":"13067990178","address":"杭州市未来科技城乐富海邦园12幢","market":"","liaison":"麦米廖军","status":"待跟进","followup":[{"date":"2026.7.8","text":"初步对接中"},{"date":"2026.7.10","text":"客户1.8度电和3.6度电的大电芯"}],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在"]},{"id":"c59","name":"溢洋光电(深圳)有限公司 溢洋能源科技(惠州)有限公司","category":"不活跃/潜在","region":"欧洲","targetProduct":"","companyInfo":"溢洋光电(深圳)有限公司成立于2005年11月9日，是一家集设计、研发、生产、经营光电显示器件及其相关产品为一体的综合型美资企业，总部位于美国加州硅谷，中国分公司位于深圳市光明高新区森阳高新科技园。\n主要业务范围\n产品与服务\n显示系统解决方案：可定制提供一整套完整的显示系统解决方案，产品覆盖工业显示器、自动售货机、公共显示广告一体机、医疗显示等领域定制化的智能设备集成系统1\nODM/OEM代加工业务：提供电路研发·SMT·PCB/PCBA加工·成品组装服务\n核心产品：初代产品主要以背光、显示模块等部件类产品和液晶手写屏终端消费类产品为主，以CHLCD为基础的终端消费电子产品具有能耗低、显示反应流畅以及独特的记忆功能等特点\n其他产品：还涉及环境监测设备系统、网络服务器系统、移动通信及终端设备研发，以及电池组、医疗器械设计组装等\n经营结构发展\n公司于2013年中后期进行经营结构调整升级，逐步从简单的OEM向ODM发展，再向\"打造自有品牌\"方向发展。\n市场与认证\n市场分布：公司产品80%主销日本、美国、加拿大、欧洲等国家和地区4\n质量认证：2011年3月15日获得ISO9001:2008质量管理体系认证证书，认证范围包括液晶手写屏和相关产品\n其他信息\n人员情况：公司有2位相关人员，分别为XIAO-YANG HUANG（法人、总经理、执行董事、股东）和HELEN HENG ZHANG（监事、股东）\n分公司情况：公司设有惠州分公司，成立于2022年12月9日，法定代表人同样为XIAO-YANG HUANG，参保人数为91人","contact":"聂宁宁","phone":"18682310182","address":"深圳市光明区森阳高新科技园A栋9楼/惠州市仲恺高新区群益智能制造产业园C2-2栋7楼，聂宁宁18682310182","market":"中东和欧洲","liaison":"Rita聂总","status":"待跟进","followup":[{"date":"2026.7.9","text":"客户需要 2kwh + 1kw 输出的， 3KWH + 2Kw 输出的"},{"date":"2026.7.8","text":"发新版规格书/没回复"}],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在"]},{"id":"c60","name":"深圳市汉邸科技有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"深圳市汉邸科技有限公司，成立于2014年11月6日，法人田金卫，位于广东省深圳市，参保人数7人（2024年报），是一家以从事电气机械和器材制造业为主的企业。企业注册资本500万人民币，实缴资本35.8万人民币。自动化机电设备（不含特种设备）、工业控制设备及元器件、传感器、安防产品、电线电缆、电子元器件、电子产品、化工产品（不含危险化学品、易制毒化学品）、计算机软件的技术开发与销售，国内贸易，经营进出口业务。^医疗设备及配件的销售。\n营运状况：深圳市汉邸科技有限公司参与招投标项目1次；知识产权方面有商标信息2条，著作权信息6条；此外企业还拥有行政许可9个。代理产品线丰富：瑞士Fischer电主轴、德国海德汉数控产品及光栅尺、海克斯康测量仪器、汇川机械手、麦格米特变频器、高创/施耐德伺服、德力西电气、紫光/婕婕微MOS等国内外知名品牌产品\n关注领域：新能源领域：充电桩、光伏等\n工业领域：数控机床、半导体设备、激光机械、自动化生产线等细分行业","contact":"","phone":"","address":"深圳市宝安区新安街道兴东社区留芳路6号庭威产业园3号楼5D","market":"全球","liaison":"麦米杨言乐","status":"待跟进","followup":[{"date":"2026.7.8","text":"汉邸在等待终端客户选择型号和颜色"}],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在"]},{"id":"c61","name":"安徽源迪电子科技有限公司 国轩","category":"不活跃/潜在","region":"非洲","targetProduct":"","companyInfo":"","contact":"曹焕","phone":"13956965716","address":"安徽省合肥市肥东县祥和路12号2号楼","market":"津巴布韦","liaison":"麦米","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在"]},{"id":"c62","name":"广汽能源科技有限公司-技术部","category":"不活跃/潜在","region":"美洲","targetProduct":"","companyInfo":"","contact":"苗永强","phone":"13204434411","address":"广东省广州市番禺区龙瀛路36号","market":"拉美、东南亚","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在"]},{"id":"c63","name":"广汽能源科技有限公司-采购部","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"张威","phone":"13602896384","address":"广东省广州市番禺区龙瀛路36号","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在"]},{"id":"c64","name":"广汽能源科技有限公司-国际事业部","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"涂隽沛","phone":"","address":"广东省广州市番禺区龙瀛路36号","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在"]},{"id":"c65","name":"香港果下科技股份有限公司","category":"不活跃/潜在","region":"非洲","targetProduct":"","companyInfo":"","contact":"张定旋","phone":"19550284471","address":"香港湾仔皇后大道东 183 号合和中心 46 楼，张定旋19550284471","market":"非洲实体店","liaison":"麦米张定旋","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在"]},{"id":"c66","name":"PaYpaRy Trading Limited 120251023837","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"Anthony","phone":"","address":"Anthony/Jethro Katantha","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在"]},{"id":"c67","name":"浙江芯能光伏科技股份有限公司 浙江芯豪科技有限公司","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"贾宏洋/海外销售总监","phone":"13590195506","address":"芯能科技地址:浙江省海宁市皮都路9号；深圳销售地址:深圳市光明新区南太云创谷3栋9楼","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在"]},{"id":"c68","name":"中比新能源","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"丁希超","phone":"","address":"","market":"","liaison":"","status":"待跟进","followup":[{"date":"2026.7.7","text":"发新版500W规格书"}],"quotes":[{"date":"2025.11.27","name":"3600W","qty":"产品资料","priceCny":"","priceUsd":"","retail":"","client":"中比新能源丁希超"}],"latestQuote":"3600W 产品资料","note":"","tags":["不活跃/潜在"]},{"id":"c69","name":"大兆菲律宾","category":"不活跃/潜在","region":"亚洲/大洋洲","targetProduct":"","companyInfo":"","contact":"大兆菲律宾","phone":"","address":"菲律宾QSJ，邵火灶，09859266666","market":"菲律宾","liaison":"","status":"待跟进","followup":[{"date":"2026.7.8","text":"邵总周五联系刘总确认细节"},{"date":"2026.7.7","text":"发新版500W规格书/客户以考察家储市场，并且有实际的饿订单，今天下午或者明天和刘总沟通具体对接细节"},{"date":"2026.7.16","text":"发送500W宣传彩页"}],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在"]},{"id":"c70","name":"云裳","category":"不活跃/潜在","region":"美洲","targetProduct":"","companyInfo":"","contact":"张萌Louis","phone":"","address":"","market":"古巴、秘鲁","liaison":"","status":"待跟进","followup":[{"date":"2026.7.8","text":"发新版500W规格书/终端客户没有具体回复"}],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在"]},{"id":"c71","name":"邓总Teqsir","category":"不活跃/潜在","region":"亚洲/大洋洲","targetProduct":"","companyInfo":"","contact":"邓总Teqsir","phone":"","address":"","market":"新加坡、马来西亚","liaison":"","status":"待跟进","followup":[{"date":"2026.7.8","text":"发新版500W规格书/发公司产品介绍"}],"quotes":[{"date":"2026.1.3","name":"eCandle","qty":"","priceCny":"","priceUsd":"115","retail":"","client":"邓总Teqsir"},{"date":"","name":"3600W","qty":"","priceCny":"","priceUsd":"800","retail":"","client":"邓总Teqsir"}],"latestQuote":"eCandle  $115","note":"","tags":["不活跃/潜在"]},{"id":"c72","name":"rfecho赵总 大洋微波徐嘉琪","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"","phone":"","address":"","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[{"date":"2025.11.25","name":"eCandle","qty":"样品","priceCny":"","priceUsd":"110","retail":"","client":"rfecho赵总 大洋微波徐嘉琪"},{"date":"","name":"3600W","qty":"样品","priceCny":"","priceUsd":"800","retail":"","client":"rfecho赵总 大洋微波徐嘉琪"},{"date":"","name":"InfernoGrid","qty":"样品","priceCny":"","priceUsd":"2500","retail":"","client":"rfecho赵总 大洋微波徐嘉琪"}],"latestQuote":"eCandle 样品 $110","note":"","tags":["不活跃/潜在"]},{"id":"c73","name":"Waga南商出海刘总","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"","phone":"","address":"","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[{"date":"2025.11.26","name":"eCandle","qty":"样品","priceCny":"820","priceUsd":"","retail":"1499/","client":"Waga南商出海刘总"},{"date":"","name":"3600W","qty":"样品","priceCny":"5800","priceUsd":"","retail":"12999/","client":"Waga南商出海刘总"}],"latestQuote":"eCandle 样品 ¥820","note":"","tags":["不活跃/潜在"]},{"id":"c74","name":"雅视太阳能控制器厂家刘留","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"","phone":"","address":"","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[{"date":"2025.11.27","name":"eCandle","qty":"样品","priceCny":"","priceUsd":"110","retail":"","client":"雅视太阳能控制器厂家刘留"}],"latestQuote":"eCandle 样品 $110","note":"","tags":["不活跃/潜在"]},{"id":"c75","name":"杨标生","category":"不活跃/潜在","region":"亚洲/大洋洲","targetProduct":"","companyInfo":"","contact":"杨标生","phone":"","address":"","market":"菲律宾","liaison":"","status":"待跟进","followup":[{"date":"2026.8.17","text":"跟进客户是否回国，联络"},{"date":"2026.7.28","text":"跟进给客户2款产品的报价的反馈，回复收到"}],"quotes":[{"date":"2026.7.29","name":"eCandlePro","qty":"500","priceCny":"1050","priceUsd":"","retail":"","client":"杨标生"},{"date":"","name":"1200W","qty":"500","priceCny":"1950","priceUsd":"","retail":"","client":"杨标生"}],"latestQuote":"eCandlePro 500 ¥1050","note":"","tags":["不活跃/潜在"]},{"id":"c76","name":"李金夫","category":"不活跃/潜在","region":"非洲","targetProduct":"","companyInfo":"","contact":"李金夫","phone":"","address":"","market":"尼日利亚/有仓库","liaison":"","status":"待跟进","followup":[{"date":"2026.7.8","text":"发产品规格书、图片"},{"date":"2026.7.20","text":"客户需求钠电池的储能电源"}],"quotes":[],"latestQuote":"","note":"","tags":["不活跃/潜在"]},{"id":"c77","name":"三一","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"","phone":"","address":"","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[{"date":"2025.12.1","name":"nan","qty":"","priceCny":"","priceUsd":"","retail":"","client":"三一 渣渣 zeta"}],"latestQuote":"nan","note":"","tags":["不活跃/潜在"]},{"id":"c78","name":"张萌Louis","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"","phone":"","address":"","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[{"date":"2025.12.13","name":"eCandle","qty":"样品","priceCny":"","priceUsd":"120","retail":"","client":"张萌Louis"},{"date":"","name":"nan","qty":"720PCS","priceCny":"","priceUsd":"110","retail":"","client":"张萌Louis"},{"date":"","name":"3600W","qty":"样品","priceCny":"","priceUsd":"800","retail":"","client":"张萌Louis"},{"date":"2025.12.22","name":"6KW","qty":"样品","priceCny":"","priceUsd":"","retail":"","client":"张萌Louis"}],"latestQuote":"6KW 样品","note":"","tags":["不活跃/潜在"]},{"id":"c79","name":"DY仲德银","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"","phone":"","address":"","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[{"date":"2025.12.15","name":"eCandle","qty":"","priceCny":"","priceUsd":"115","retail":"","client":"DY仲德银"}],"latestQuote":"eCandle  $115","note":"","tags":["不活跃/潜在"]},{"id":"c80","name":"Edward 刘德荣","category":"不活跃/潜在","region":"国内","targetProduct":"","companyInfo":"","contact":"","phone":"","address":"","market":"","liaison":"","status":"待跟进","followup":[],"quotes":[{"date":"2026.1.15","name":"eCandle","qty":"","priceCny":"820/780","priceUsd":"","retail":"","client":"Edward 刘德荣"}],"latestQuote":"eCandle  ¥820/780","note":"","tags":["不活跃/潜在"]},{"id":"c81","name":"渔友料理","category":"已发货","region":"国内","targetProduct":"","companyInfo":"","contact":"陈伟","phone":"13632765333","address":"福田区长宝大厦B座一楼","market":"","liaison":"","status":"已发货","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["已发货"]},{"id":"c82","name":"优尼可","category":"已发货","region":"国内","targetProduct":"","companyInfo":"","contact":"万小姐","phone":"13509681316","address":"广东惠州市惠阳区镇隆科伦特科创园1栋2楼","market":"","liaison":"","status":"已发货","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["已发货"]},{"id":"c83","name":"深圳市福田区华强北华联发大厦618","category":"已发货","region":"国内","targetProduct":"","companyInfo":"","contact":"方越","phone":"15002083692","address":"深圳市福田区华强北华联发大厦618","market":"","liaison":"","status":"已发货","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["已发货"]},{"id":"c85","name":"广东省富登科技有限公司","category":"已发货","region":"国内","targetProduct":"","companyInfo":"","contact":"陈治国","phone":"13823270748","address":"广东省惠州市惠城区潼湖镇仲恺高新区三和村和溪路252号联东U谷11栋1楼","market":"","liaison":"","status":"已发货","followup":[],"quotes":[],"latestQuote":"","note":"","tags":["已发货"]},{"id":"c86","name":"深圳渴电Gary Liu","category":"报价客户","region":"国内","targetProduct":"eCandle","companyInfo":"","contact":"","phone":"","address":"","market":"","liaison":"","status":"已报价","followup":[],"quotes":[{"date":"2025.11.26","name":"eCandle","qty":"样品","priceCny":"820","priceUsd":"","retail":"","client":"深圳渴电Gary Liu"},{"date":"","name":"eCandle","qty":"500PCS","priceCny":"780","priceUsd":"","retail":"","client":"深圳渴电Gary Liu"}],"latestQuote":"eCandle 样品 ¥820","note":"","tags":["报价客户"]},{"id":"c87","name":"苏州贝安新能源孙总","category":"报价客户","region":"国内","targetProduct":"eCandle","companyInfo":"","contact":"","phone":"","address":"","market":"","liaison":"","status":"已报价","followup":[],"quotes":[{"date":"2025.12.1","name":"eCandle","qty":"样品","priceCny":"820","priceUsd":"","retail":"1499/","client":"苏州贝安新能源孙总"},{"date":"","name":"3600W","qty":"样品","priceCny":"5800","priceUsd":"","retail":"/1599","client":"苏州贝安新能源孙总"}],"latestQuote":"eCandle 样品 ¥820","note":"","tags":["报价客户"]},{"id":"c88","name":"Jessica","category":"报价客户","region":"国内","targetProduct":"nan","companyInfo":"","contact":"","phone":"","address":"","market":"","liaison":"","status":"已报价","followup":[],"quotes":[{"date":"2026.3.10","name":"nan","qty":"","priceCny":"","priceUsd":"","retail":"","client":"Jessica"},{"date":"2026.8.24","name":"eCandlePro","qty":"1","priceCny":"1150","priceUsd":"","retail":"","client":"Jessica"}],"latestQuote":"eCandlePro 1 ¥1150","note":"","tags":["报价客户"]},{"id":"c89","name":"杨宏鑫","category":"报价客户","region":"国内","targetProduct":"eCandle","companyInfo":"","contact":"","phone":"","address":"","market":"","liaison":"","status":"已报价","followup":[],"quotes":[{"date":"2026.7.20","name":"eCandle","qty":"1K","priceCny":"560","priceUsd":"","retail":"","client":"杨宏鑫"}],"latestQuote":"eCandle 1K ¥560","note":"","tags":["报价客户"]},{"id":"c90","name":"东莞易利特","category":"报价客户","region":"国内","targetProduct":"eCandle套料","companyInfo":"","contact":"","phone":"","address":"","market":"","liaison":"","status":"已报价","followup":[],"quotes":[{"date":"2026.8.5","name":"eCandle套料","qty":"500","priceCny":"550","priceUsd":"","retail":"","client":"东莞易利特"}],"latestQuote":"eCandle套料 500 ¥550","note":"","tags":["报价客户"]},{"id":"c91","name":"东莞锂德","category":"报价客户","region":"国内","targetProduct":"eCandle","companyInfo":"","contact":"","phone":"","address":"","market":"","liaison":"","status":"已报价","followup":[],"quotes":[{"date":"2026.8.12","name":"eCandle","qty":"25","priceCny":"950","priceUsd":"","retail":"","client":"东莞锂德"}],"latestQuote":"eCandle 25 ¥950","note":"","tags":["报价客户"]},{"id":"c92","name":"南非SA","category":"海外渠道","region":"国内","targetProduct":"","companyInfo":"Pick n Pay Hypermarket： 大型综合卖场。 \nBoxer Stores： 主打下沉市场和 B 端批发客群的仓储超市。","contact":"Boxer Stores","phone":"Buyer Assistant at Boxer Head Office (Commercial department) Durban, KwaZulu-Natal, South Africa","address":"2026.7.22 南非SA","market":"2026.7.22","liaison":"","status":"开发中","followup":[{"date":"sheilahtshiguvho@segensolar.co.za","text":"官网提交介绍资料，无邮箱"},{"date":"sales@tnengineering.co.za","text":"7.22已邮件"},{"date":"kyle.swanepoel@ibc-solar.co.za   /+27 82 870 9055","text":"7.22已邮件"},{"date":"WhatsApp +27 60 755 4917","text":"加WhatsApp"},{"date":"Warrington, England, United Kingdom","text":"领英好友已通过"},{"date":"Hello@LNEtech.co.za  /0760342877","text":"7.22已邮件"},{"date":"","text":"领英加好友，等通过"},{"date":"","text":"领英加好友，等通过"},{"date":"","text":"领英加好友，等通过"},{"date":"","text":"领英加好友，等通过"},{"date":"","text":"领英加好友，等通过"},{"date":"","text":"领英好友已通过"},{"date":"","text":"领英好友已通过"}],"quotes":[],"latestQuote":"","note":"","tags":["海外渠道"]},{"id":"c93","name":"斯洛伐克Slovakia","category":"海外渠道","region":"国内","targetProduct":"","companyInfo":"","contact":"Solar Company","phone":"CEO of Solar Company","address":"2026.7.22 斯洛伐克Slovakia","market":"2026.7.22","liaison":"","status":"开发中","followup":[{"date":"","text":"领英加好友，等通过"}],"quotes":[],"latestQuote":"","note":"","tags":["海外渠道"]},{"id":"c94","name":"安哥拉（Angola）","category":"海外渠道","region":"国内","targetProduct":"","companyInfo":"核心渠道 B：大型综合进口分销财团 \nNoble Group (Angoalissar / Maxi)： 安哥拉最大的进口分销商之一，旗下有批发与零售一体化网络。","contact":"Noble Group (Angoalissar / Maxi)","phone":"Luanda Province, Angola","address":"2026.7.23 安哥拉（Angola）","market":"2026.7.23","liaison":"","status":"开发中","followup":[{"date":"info@angoalissar.com","text":"7.23已邮件"}],"quotes":[],"latestQuote":"","note":"","tags":["海外渠道"]},{"id":"c95","name":"科特迪瓦 Côte d'Ivoire","category":"海外渠道","region":"国内","targetProduct":"","companyInfo":"西非最大的 PAYG 运营平台之一。他们在当地拥有庞大的下沉销售团队、软硬件管控平台以及分期扣款系统，非常适合消化你们的带 PAYG 协议储能产品。","contact":"Bboxx Côte d'Ivoire","phone":"Field Logistics Junior Manager I Distribution & Logistics | FleetManagement| Procurement I Supply Chain | Inventory &Storage | Renewable Energy| Port Handling |","address":"2026.7.23 科特迪瓦  Côte d'Ivoire","market":"2026.7.23","liaison":"","status":"开发中","followup":[{"date":"info@bboxx.co.uk","text":"7.23已邮件"},{"date":"contact@baobab.com","text":"7.23已邮件"},{"date":"","text":"领英/TikTok加好友，等通过"}],"quotes":[],"latestQuote":"","note":"","tags":["海外渠道"]},{"id":"c96","name":"赞比亚 Zambia","category":"海外渠道","region":"国内","targetProduct":"","companyInfo":"太阳能储能分销商","contact":"Get Off Grid Zambia","phone":"","address":"2026.7.24 赞比亚  Zambia","market":"2026.7.24","liaison":"","status":"开发中","followup":[{"date":"sales@getoffgrid.co.zm/Tech@getoffgrid.co.zm/+260 95 875 1872","text":"7.24已邮件"}],"quotes":[],"latestQuote":"","note":"","tags":["海外渠道"]}]</script>
+<script>
+/* ================= 加密 / 存储 ================= */
+var LS='clm_store_v3';
+var SECRET_VERSION=1;
+var DEFAULTPW='admin123';
+var te=new TextEncoder(), td=new TextDecoder();
+function toB64(u8){var s='',C=0x8000;for(var i=0;i<u8.length;i+=C){s+=String.fromCharCode.apply(null,u8.subarray(i,i+C));}return btoa(s);}
+function fromB64(b){var bin=atob(b),u8=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);return u8;}
+function rand(n){return crypto.getRandomValues(new Uint8Array(n));}
+async function deriveKey(pw,saltB,iter){var k=await crypto.subtle.importKey('raw',te.encode(pw),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt:saltB,iterations:iter,hash:'SHA-256'},k,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);}
+async function importAES(bytes){return await crypto.subtle.importKey('raw',bytes,{name:'AES-GCM'},false,['encrypt','decrypt']);}
+async function encBytes(key,bytes){var iv=rand(12);var ct=await crypto.subtle.encrypt({name:'AES-GCM',iv:iv},key,bytes);return {iv:iv,ct:new Uint8Array(ct)};}
+async function decBytes(key,ivB,ctB){var pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:ivB},key,ctB);return new Uint8Array(pt);}
+
+/* ================= 状态 ================= */
+var store=null;         // 本地版遗留（云端版本不再使用）
+var cur=null;           // { user:{u,role}, id }
+var clients=[];
+var accounts=[];        // [{id,email,role}] 供管理员分配权限
+var view={name:'home',region:'全部',cat:'全部',q:'',detailId:null};
+var fabOpen=false;
+
+/* ================= Supabase 云端接入 ================= */
+/* 部署：在下方两行填入 Supabase 项目的配置（见 SETUP.md）
+ * Project URL 示例：https://xxxxx.supabase.co
+ * anon public key：Settings → API → anon public */
+var SUPABASE_URL='https://dculcydsftjfpcjneuna.supabase.co';   // <-- 你的 Supabase Project URL
+var SUPABASE_ANON='sb_publishable_10PzA2_ipYo_4jT9a6-hlA_RbCdhfPn';  // <-- 你的 Supabase anon public key
+var sb=null;
+function sbclip(){
+  if(sb)return sb;
+  if(!window.supabase||!window.supabase.createClient)throw new Error('supabase-js 未加载，请检查网络');
+  if(!SUPABASE_URL||!SUPABASE_ANON)throw new Error('请在本文件顶部填入 SUPABASE_URL / SUPABASE_ANON');
+  return sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
+}
+function toRow(o){return {name:o&&o.name||'',category:o&&o.category||'',region:o&&o.region||'',target_product:o&&o.targetProduct||'',market:o&&o.market||'',contact:o&&o.contact||'',phone:o&&o.phone||'',address:o&&o.address||'',liaison:o&&o.liaison||'',status:o&&o.status||'',company_info:o&&o.companyInfo||'',note:o&&o.note||''};}
+async function loadAll(){
+  var sbc=sbclip();
+  var {data:{user}}=await sbc.auth.getUser();if(!user)return;
+  var myRole='viewer';
+  var {data:profs,error:pe}=await sbc.from('profiles').select('id,email,role');
+  if(!pe&&profs){
+    accounts=profs.filter(function(p){return p.id!==user.id;});
+    profs.forEach(function(p){if(p.id===user.id)myRole=p.role;});
+  }
+  cur={user:{u:user.email||'',role:myRole},id:user.id};
+  var {data:cs}=await sbc.from('clients').select('*');
+  var {data:fs}=await sbc.from('followups').select('*');
+  var {data:qs}=await sbc.from('quotes').select('*');
+  clients=(cs||[]).map(function(r){return {id:r.id,name:r.name,category:r.category||'',region:r.region||'',targetProduct:r.target_product||'',market:r.market||'',contact:r.contact||'',phone:r.phone||'',address:r.address||'',liaison:r.liaison||'',status:r.status||'',companyInfo:r.company_info||'',note:r.note||'',tags:r.tags||[],followup:[],quotes:[],latestQuote:''};});
+  var cm={};clients.forEach(function(c){cm[c.id]=c;});
+  (qs||[]).forEach(function(x){var c=cm[x.client_id];if(c)c.quotes.push({date:x.date||'',name:x.name||'',qty:x.qty||'',priceCny:x.price_cny||'',priceUsd:x.price_usd||'',retail:x.retail||''});});
+  (fs||[]).forEach(function(x){var c=cm[x.client_id];if(c)c.followup.push({date:x.date||'',text:x.text||''});});
+  clients.forEach(function(c){
+    if(c.quotes&&c.quotes.length){var last=c.quotes[c.quotes.length-1];c.latestQuote=[last.name,last.qty,last.priceCny&&('¥'+last.priceCny),last.priceUsd&&('$'+last.priceUsd)].filter(Boolean).join(' ');}
+  });
+  clients.sort(function(a,b){return (a.id||'')<(b.id||'')?-1:1;});
+}
+function subscribe(sbc){
+  sbc.channel('crm-db')
+    .on('postgres_changes',{event:'*',schema:'public',table:'clients'},function(){onRemote();})
+    .on('postgres_changes',{event:'*',schema:'public',table:'followups'},function(){onRemote();})
+    .on('postgres_changes',{event:'*',schema:'public',table:'quotes'},function(){onRemote();})
+    .subscribe();
+}
+function onRemote(){
+  loadAll().then(function(){ if(cur&&view&&view.name!=='edit')render(); }).catch(function(){});
+}
+async function changeRole(id,role){
+  if(!isAdmin())return toast('仅管理员可操作');
+  var {error}=await sb.from('profiles').update({role:role}).eq('id',id);
+  if(error)return toast('设置失败：'+(error.message||''));
+  accounts.forEach(function(a){if(a.id===id)a.role=role;});
+  toast('已更新角色');render();
+}
+
+function loadStore(){
+  try{var raw=localStorage.getItem(LS);if(raw){store=JSON.parse(raw);return true;}}catch(e){}
+  return false;
+}
+function saveStore(){localStorage.setItem(LS,JSON.stringify(store));}
+function wipeStore(){localStorage.removeItem(LS);}
+
+/* 首次初始化：生成数据密钥，用默认管理员口令包裹，加密 seed 数据 */
+async function bootstrap(){
+  var dataKey=rand(32);
+  var seed=JSON.parse(document.getElementById('seed').textContent);
+  var dk=await importAES(dataKey);
+  var de=await encBytes(dk,te.encode(JSON.stringify(seed)));
+  var salt=rand(16),iter=120000;
+  var pk=await deriveKey(DEFAULTPW,salt,iter);
+  var wr=await encBytes(pk,dataKey);
+  store={
+    version:SECRET_VERSION,
+    keystore:[{u:'admin',role:'admin',salt:toB64(salt),iter:iter,iv:toB64(wr.iv),enc:toB64(wr.ct),created:Date.now(),pwDefault:true}],
+    data:{iv:toB64(de.iv),ct:toB64(de.ct)}
+  };
+  saveStore();
+}
+
+/* 登录 */
+async function doLogin(){
+  var u=document.getElementById('loginUser').value.trim();
+  var pw=document.getElementById('loginPw').value;
+  var err=document.getElementById('loginErr');
+  err.classList.remove('show');
+  if(!u||!pw){err.textContent='请输入邮箱和密码';err.classList.add('show');return;}
+  var btn=document.getElementById('loginBtn');btn.disabled=true;btn.querySelector('span').textContent='登录中…';
+  try{
+    var sbc=sbclip();
+    var {data,error}=await sbc.auth.signInWithPassword({email:u,password:pw});
+    if(error)throw new Error(error.message||'登录失败');
+    await loadAll();
+    subscribe(sbc);
+    enterApp();
+  }catch(e){
+    err.textContent=(e&&e.message)||'登录失败';err.classList.add('show');
+  }finally{
+    btn.disabled=false;btn.querySelector('span').textContent='登 录';
+  }
+}
+/* 会话保持：同标签页刷新免重登，关闭浏览器则清除 */
+function saveSession(){
+  try{ sessionStorage.setItem('clm_sess',JSON.stringify({k:toB64(cur.dataKey),u:cur.user})); }catch(_){}
+}
+function clearSession(){ try{ sessionStorage.removeItem('clm_sess'); }catch(_){} }
+function loadSession(){ try{ return JSON.parse(sessionStorage.getItem('clm_sess')); }catch(_){ return null; } }
+function enterApp(){
+  document.getElementById('vLogin').style.display='none';
+  document.getElementById('vApp').classList.add('on');
+  render();
+}
+async function logout(){
+  if(!confirm('确定退出登录？'))return;
+  try{await sb.auth.signOut();}catch(e){}
+  cur=null;clients=[];accounts=[];
+  view={name:'home',region:'全部',cat:'全部',q:''};
+  document.getElementById('vLogin').style.display='flex';document.getElementById('vApp').classList.remove('on');document.getElementById('loginPw').value='';
+}
+/* 云端版本无需本地重置 */
+function resetApp(){ toast('云端数据多人共享，无需本地重置'); }
+function togglePw(id,btn){
+  var i=document.getElementById(id);if(i.type==='password'){i.type='text';btn.textContent='🙈';}else{i.type='password';btn.textContent='👁';}
+}
+
+/* ================= 权限 ================= */
+function canWrite(){return cur&&cur.user.role!=='viewer';}
+function isAdmin(){return cur&&cur.user.role==='admin';}
+
+/* ================= 数据写操作（写入 Supabase，云端共享）================= */
+async function createClient(obj){
+  if(!canWrite())return toast('无修改权限');
+  var {error}=await sb.from('clients').insert(Object.assign({id:'c'+Date.now()},toRow(obj)));
+  if(error)return toast('保存失败：'+(error.message||''));
+  await loadAll();render();toast('已新增客户');
+}
+async function updateClient(id,obj){
+  if(!canWrite())return toast('无修改权限');
+  var {error}=await sb.from('clients').update(toRow(obj)).eq('id',id);
+  if(error)return toast('保存失败：'+(error.message||''));
+  await loadAll();render();toast('已保存');
+}
+async function deleteClient(id){
+  if(!canWrite())return toast('无修改权限');
+  if(!confirm('确定删除该客户？此操作不可恢复。'))return;
+  var {error}=await sb.from('clients').delete().eq('id',id);
+  if(error)return toast('删除失败：'+(error.message||''));
+  view.name='list';await loadAll();render();toast('已删除');
+}
+async function addFollowup(id,date,text){
+  if(!canWrite())return toast('无修改权限');
+  var {error}=await sb.from('followups').insert({client_id:id,date:date,text:text});
+  if(error)return toast('添加失败：'+(error.message||''));
+  await loadAll();render();
+}
+async function addQuote(id,q){
+  if(!canWrite())return toast('无修改权限');
+  var {error}=await sb.from('quotes').insert({client_id:id,date:q.date||'',name:q.name||'',qty:q.qty||'',price_cny:q.priceCny||'',price_usd:q.priceUsd||'',retail:q.retail||''});
+  if(error)return toast('添加失败：'+(error.message||''));
+  await loadAll();render();
+}
+
+/* 账号管理（云端版：新账号在 Supabase 后台创建，此处管理角色与改密） */
+async function addAccount(u,pw,role){ toast('新账号请在 Supabase 后台创建（Authentication → Add user，邮箱+密码），创建后自动以“查看”权限加入，再到下方调整权限。'); }
+async function deleteAccount(u){ toast('请到 Supabase 后台移除用户：Authentication → Users'); }
+async function changePassword(op,np){
+  if(!cur)return;
+  if(!np)return toast('请输入新密码');
+  var {data,error}=await sb.auth.updateUser({password:np});
+  if(error)return toast((error&&error.message)||'修改失败');
+  toast('密码已修改');
+}
+
+/* ================= UI 工具 ================= */
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});}
+function toast(m,c){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show');},2200);}
+function fmtDate(ts){var d=new Date(ts);return (d.getMonth()+1)+'月'+d.getDate()+'日';}
+
+var REGIONS=[['国内','◎'],['非洲','🦁'],['亚洲/大洋洲','🌏'],['美洲','🌎'],['欧洲','🌍']];
+function regionMeta(r){for(var i=0;i<REGIONS.length;i++)if(REGIONS[i][0]===r)return REGIONS[i];return [r,'🏷'];}
+function catStyle(c){if(c==='已入库·跟进中'||c.indexOf('跟进')>-1)return 't-green';if(c==='海外渠道')return 't-amber';return 't-line';}
+function tagsOf(c){return c.tags&&c.tags.length?c.tags:[c.category].filter(Boolean);}
+function latestQuoteText(c){if(c.latestQuote)return c.latestQuote;var qs=c.quotes||[];if(!qs.length)return '';var last=qs[qs.length-1];return [last.name,last.qty,last.priceCny&&('¥'+last.priceCny),last.priceUsd&&('$'+last.priceUsd)].filter(Boolean).join(' ');}
+function regionCount(r){return clients.filter(function(c){return c.region===r;}).length;}
+/* 区域选项：五大区 + 未分类 + 客户中出现的自定义区域，动态生成 */
+function regionOptions(){
+  var defs=['国内','非洲','亚洲/大洋洲','美洲','欧洲','未分类'];
+  var seen={},out=[];
+  defs.forEach(function(d){seen[d]=1;out.push(d);});
+  clients.forEach(function(c){if(c.region&&!seen[c.region]){seen[c.region]=1;out.push(c.region);}});
+  return out;
+}
+
+/* 分类筛选项动态（报价客户不并列作为分类，改由统计页统计真实报价数） */
+function catOptions(){
+  var m={};
+  clients.forEach(function(c){tagsOf(c).forEach(function(t){if(t!=='报价客户')m[t]=1;});});
+  return Object.keys(m);
+}
+function catCount(cat){
+  return clients.filter(function(c){return tagsOf(c).indexOf(cat)>-1;}).length;
+}
+
+/* ================= 渲染 ================= */
+function render(){
+  renderTopbar();
+  var p=document.getElementById('panel');
+  if(view.name==='home')p.innerHTML=renderHome();
+  else if(view.name==='list')p.innerHTML=renderList();
+  else if(view.name==='detail')p.innerHTML=renderDetail(view.detailId);
+  else if(view.name==='edit')p.innerHTML=renderEdit(view.detailId);
+  else if(view.name==='stat')p.innerHTML=renderStat();
+  else if(view.name==='my')p.innerHTML=renderMy();
+  renderBottom();
+  document.getElementById('main').scrollTop=0;
+}
+
+function renderTopbar(){
+  var t=document.getElementById('topbar');
+  var isDetail=view.name==='detail';
+  if(isDetail||view.name==='edit'){
+    var title=view.name==='edit'?'编辑客户':(cu().name||'客户详情');
+    t.innerHTML=topbar(title,true);
+    return;
+  }
+  var title=(view.name==='home')?'区域概览':(view.name==='stat')?'数据统计':(view.name==='my')?'我的' :'全部客户';
+  t.innerHTML=topbar(title,false);
+}
+function topbar(title,hasSearch){
+  var sub=(view.name==='home')?'· '+clients.length+' 位客户' :(view.name==='list'?'· '+filtered().length+' 位':'');
+  var search='';
+  if(view.name==='list'){
+    search='<div class="search-wrap"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="searchInput" value="'+esc(view.q)+'" placeholder="搜索客户/联系人/市场" oninput="searchInput(this.value)"></div>';
+  }
+  var right='';
+  if(view.name==='home')right='<button class="icon-btn" onclick="goto(\'stat\')" aria-label="统计"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 20V10M12 20V4M18 20v-6"/></svg></button>';
+  right+='<button class="icon-btn" onclick="goto(\'my\')" aria-label="我的"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6"/></svg></button>';
+  return '<div class="t-title">'+title+'<span class="t-sub">'+sub+'</span></div>'+search+'<div class="top-actions">'+right+'</div>';
+}
+function cu(){if(view.detailId)return clients.find(function(c){return c.id===view.detailId;});return null;}
+
+function renderHome(){
+  var total=clients.length;
+  var html='<section class="rise">';
+  html+='<div class="section-title" style="margin-top:2px"><h3>客户分布</h3><button class="more" onclick="goto(\'list\')">全部客户 ›</button></div>';
+  html+='<div class="region-grid" style="grid-template-columns:1fr 1fr">';
+  var idx=0;
+  regionOptions().forEach(function(rk){
+    var n=regionCount(rk);
+    if(n===0)return;
+    var big=idx===0;
+    html+='<button class="r-tile" '+(big?'data-big':'')+' onclick="openRegion(\''+rk+'\')">';
+    html+='<div class="r-ico">'+regionMeta(rk)[1]+'</div>';
+    html+='<div class="r-name">'+rk+'</div>';
+    html+='<div class="r-meta">'+n+' 位客户</div>';
+    html+='<div class="r-count num">'+n+'</div>';
+    html+='<div class="r-next">›</div></button>';
+    idx++;
+  });
+  html+='</div></section>';
+
+  // 分类概览
+  html+='<section class="rise" style="animation-delay:.05s"><div class="section-title"><h3>客户分类</h3></div>';
+  html+='<div class="c-card" style="flex-direction:column;gap:4px">';
+  catOptions().forEach(function(cat){
+    var n=catCount(cat);
+    html+='<div onclick="goto(&apos;list&apos;)" data-cat="'+esc(cat)+'" class="sec-row" style="width:100%;cursor:pointer"><span class="tag '+catStyle(cat)+'">'+esc(cat)+'</span><div class="t" style="flex:1"></div><b class="num" style="color:var(--ink-2)">'+n+'</b></div>';
+  });
+  html+='</div></section>';
+
+  // 重点跟进
+  html+='<section class="rise" style="animation-delay:.1s"><div class="section-title"><h3>活跃跟进</h3></div>';
+  var act=clients.filter(function(c){return tagsOf(c).indexOf('已入库·跟进中')>-1;});
+  act.forEach(function(c){
+    var lp=latestQuoteText(c);
+    html+=card(c,lp);
+  });
+  html+='</section>';
+  return html;
+}
+
+function filtered(){
+  var r=view.region,cat=view.cat,q=view.q.toLowerCase();
+  return clients.filter(function(c){
+    if(r!=='全部'&&c.region!==r)return false;
+    if(cat!=='全部'&&tagsOf(c).indexOf(cat)<0)return false;
+    if(q){var hay=(c.name+' '+c.contact+' '+c.phone+' '+c.market+' '+c.liaison+' '+c.targetProduct+' '+tagsOf(c).join(' ')).toLowerCase();if(hay.indexOf(q)<0)return false;}
+    return true;
+  });
+}
+
+function renderList(){
+  var list=filtered();
+  var html='';
+  html+='<div class="filter-bar">';
+  html+='<button class="chip'+(view.region==='全部'?' on':'')+'" onclick="setRegion(&apos;全部&apos;)">全部区域<span class="count-pill">'+clients.length+'</span></button>';
+  regionOptions().forEach(function(rk){
+    if(regionCount(rk)===0)return;
+    html+='<button class="chip'+(view.region===rk?' on':'')+'" onclick="setRegion(&apos;'+rk+'&apos;)">'+rk+'<span class="count-pill">'+regionCount(rk)+'</span></button>';
+  });
+  html+='</div>';
+  html+='<div class="filter-bar">';
+  html+='<button class="chip'+(view.cat==='全部'?' on':'')+'" onclick="setCat(&apos;全部&apos;)">全部分类</button>';
+  catOptions().forEach(function(cat){
+    html+='<button class="chip'+(view.cat===cat?' on':'')+'" onclick="setCat(&apos;'+esc(cat)+'&apos;)">'+esc(cat)+'<span class="count-pill">'+catCount(cat)+'</span></button>';
+  });
+  html+='</div>';
+  var title=view.region!=='全部'?view.region:(view.cat!=='全部'?view.cat:'全部客户');
+  html+='<div class="view-head"><h2>'+title+'</h2><span class="sub num">'+list.length+' 位</span></div>';
+  if(!list.length){
+    html+='<div class="empty"><div class="e-ico">🔍</div><div>没有匹配的客户</div></div>';
+  }else{
+    list.forEach(function(c){html+=card(c,latestQuoteText(c));});
+  }
+  return html;
+}
+function card(c,lp){
+  var avName=(c.name||'客').replace(/^[（(]|[）)]/g,'').slice(0,1);
+  var tags=tagsOf(c);
+  var contact=(c.contact||c.liaison||'');
+  var p1=contact?'<div class="row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6"/></svg><b>'+esc(contact)+'</b>'+(c.phone?' · '+esc(c.phone):'')+'</div>':'';
+  var p2=(c.market||c.targetProduct)?'<div class="row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'+esc(c.market||c.targetProduct)+'</div>':'';
+  var p3=lp?'<div class="row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 17v-6M7 17V9M11 17v-8M15 17v-4M19 17V5"/></svg><b>'+esc(lp)+'</b></div>':'';
+  return '<button class="c-card" onclick="openClient(\''+c.id+'\')">'+
+    '<div class="avatar">'+esc(avName)+'</div>'+
+    '<div class="c-main">'+
+      '<div class="c-name">'+esc(c.name)+'</div>'+
+      '<div class="c-tags">'+tags.map(function(t){return '<span class="tag '+catStyle(t)+'">'+esc(t)+'</span>';}).join('')+'</div>'+
+      '<div class="c-meta">'+p1+p2+p3+'</div>'+
+    '</div>'+
+    '<div class="c-chev">›</div>'+
+    '</button>';
+}
+
+/* ===== 详情 ===== */
+function renderDetail(id){
+  var c=clients.find(function(x){return x.id===id;});
+  if(!c)return '<div class="empty">客户不存在</div>';
+  var tags=tagsOf(c);
+  var quote=latestQuoteText(c);
+  var write=canWrite();
+  var f=c.followup||[],q=c.quotes||[];
+  var html='<div class="rise">';
+  html+='<div class="d-hero">';
+  html+='<button class="back" onclick="goto(&apos;list&apos;)">‹ 返回</button>';
+  html+='<h2>'+esc(c.name)+'</h2>';
+  html+='<div class="d-sub">'+tags.map(function(t){return '<span class="d-badge">'+esc(t)+'</span>';}).join('')+(c.region?('<span class="d-badge">'+esc(c.region)+'</span>'):'')+'</div>';
+  html+='</div>';
+
+  html+='<div class="panel" style="max-width:860px">';
+  html+='<div class="d-brief">';
+  html+='<div class="kv"><div class="k">类别</div><div class="v small">'+esc(tags[0]||'-')+'</div></div>';
+  html+='<div class="kv"><div class="k">对接人</div><div class="v small">'+esc(c.liaison||'-')+'</div></div>';
+  html+='<div class="kv"><div class="k">目标市场</div><div class="v small">'+esc(c.market||'-')+'</div></div>';
+  html+='<div class="kv"><div class="k">目标产品</div><div class="v small">'+esc(c.targetProduct||'-')+'</div></div>';
+  if(quote)html+='<div class="kv quote"><div class="k">最新报价</div><div class="v">'+esc(quote)+'</div></div>';
+  html+='</div>';
+
+  html+='<div class="block"><div class="block-head"><h4>联系信息</h4></div><div class="contact-list">';
+  html+='<div class="contact-row"><div class="l">联系人</div><div class="r" onclick="copyText(this)">'+esc(c.contact||'-')+'</div></div>';
+  html+='<div class="contact-row"><div class="l">电话</div><div class="r" onclick="copyText(this)">'+esc(c.phone||'-')+'</div></div>';
+  html+='<div class="contact-row"><div class="l">地址</div><div class="r" style="font-size:12.5px;font-weight:600;text-align:right;word-break:break-all" onclick="copyText(this)">'+esc(c.address||'-')+'</div></div>';
+  html+='</div></div>';
+
+  if(c.companyInfo){
+    html+='<div class="block"><div class="block-head"><h4>企业信息</h4></div><div class="long-text">'+esc(c.companyInfo)+'</div></div>';
+  }
+
+  html+='<div class="block"><div class="block-head"><h4>跟进记录 <span class="muted num" style="font-size:12px;font-weight:500">'+f.length+' 条</span></h4>'+(write?'<button class="icon-act" onclick="promptFollow(\''+c.id+'\')">＋ 添加</button>':'')+'</div>';
+  if(!f.length){html+='<p class="muted" style="font-size:13px;margin:2px 0">暂无跟进记录</p>';}
+  else{
+    html+='<div class="tl">';
+    f.forEach(function(it){
+      var isNew=(Date.now()-new Date(it.date.replace(/\./g,'-')).getTime())<30*24*3600*1000;
+      html+='<div class="tl-item'+(isNew?' new':'')+'"><div class="tl-date'+(isNew?' new':'')+'">'+esc(it.date)+'</div><div class="tl-text">'+esc(it.text)+'</div></div>';
+    });
+    html+='</div>';
+  }
+  html+='</div>';
+
+  html+='<div class="block"><div class="block-head"><h4>报价记录 <span class="muted num" style="font-size:12px;font-weight:500">'+q.length+' 条</span></h4>'+(write?'<button class="icon-act" onclick="promptQuote(\''+c.id+'\')">＋ 添加</button>':'')+'</div>';
+  if(!q.length){html+='<p class="muted" style="font-size:13px;margin:2px 0">暂无报价</p>';}
+  else{
+    q.forEach(function(x){
+      var price=[x.priceCny&&('¥'+x.priceCny),x.priceUsd&&('$'+x.priceUsd)].filter(Boolean).join(' / ');
+      html+='<div class="q-row"><div class="q-left"><div class="q-date">'+esc(x.date||'')+'</div><div class="q-model">'+esc(x.name||'')+'</div><div class="q-sub">'+esc(x.qty||'')+'</div></div><div class="q-price">'+esc(price)+'</div></div>';
+    });
+  }
+  html+='</div>';
+
+  if(write){
+    html+='<div class="field-actions" style="margin-top:6px">';
+    html+='<button class="save-btn" onclick="goto(\'edit\',\''+c.id+'\')">编辑客户</button>';
+    html+='<button class="danger-btn" onclick="deleteClient(\''+c.id+'\')">删除</button>';
+    html+='</div>';
+  }
+  html+='</div>';
+  return html;
+}
+
+function copyText(el){
+  var t=el.textContent.trim();if(!t||t==='-')return;
+  if(navigator.clipboard){navigator.clipboard.writeText(t).then(function(){toast('已复制');},function(){});}else toast('无法复制');
+}
+
+/* 弹层：添加跟进/报价 */
+function promptFollow(id){
+  var d=document.createElement('div');d.className='sheet-mask';d.style.cssText='position:fixed;inset:0;z-index:60;background:rgba(15,22,18,.4);display:flex;align-items:flex-end;justify-content:center';
+  var now=new Date();var ds=now.getFullYear()+'.'+(now.getMonth()+1)+'.'+now.getDate();
+  d.innerHTML='<div class="sheet" style="background:var(--surface);width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:18px;padding-bottom:calc(env(safe-area-inset-bottom)+18px);animation:rise .3s var(--ease)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><b style="font-size:15px">添加跟进</b><button style="font-size:18px" onclick="this.closest(&apos;.sheet-mask&apos;).remove()">✕</button></div>'+
+    '<label class="label">日期</label><input id="sfDate" value="'+ds+'">'+
+    '<label class="label" style="margin-top:12px">跟进内容</label><textarea id="sfText" rows="3" placeholder="本次跟进的情况…" style="resize:vertical"></textarea>'+
+    '<button class="primary-btn mt12" onclick="submitFollow(\''+id+'\')">保存</button></div>';
+  document.body.appendChild(d);
+}
+async function submitFollow(id){
+  var date=document.getElementById('sfDate').value.trim();
+  var text=document.getElementById('sfText').value.trim();
+  if(!date||!text)return toast('请填写日期与内容');
+  await addFollowup(id,date,text);
+  document.querySelector('.sheet-mask').remove();
+  toast('已添加跟进');
+}
+
+function promptQuote(id){
+  var d=document.createElement('div');d.className='sheet-mask';d.style.cssText='position:fixed;inset:0;z-index:60;background:rgba(15,22,18,.4);display:flex;align-items:flex-end;justify-content:center';
+  var now=new Date();var ds=now.getFullYear()+'.'+(now.getMonth()+1)+'.'+now.getDate();
+  d.innerHTML='<div class="sheet" style="background:var(--surface);width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:18px;padding-bottom:calc(env(safe-area-inset-bottom)+18px);animation:rise .3s var(--ease)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><b style="font-size:15px">添加报价</b><button style="font-size:18px" onclick="this.closest(&apos;.sheet-mask&apos;).remove()">✕</button></div>'+
+    '<div class="form-grid"><div class="full"><label class="label">日期</label><input id="sqDate" value="'+ds+'"></div>'+
+    '<div class="full"><label class="label">产品型号</label><input id="sqName" placeholder="如 eCandlePro"></div>'+
+    '<div><label class="label">数量</label><input id="sqQty" placeholder="如 500 / 样品"></div>'+
+    '<div class="two" style="grid-template-columns:1fr 1fr;display:grid;gap:12px"><div><label class="label">RMB 单价</label><input id="sqCny" placeholder="如 780"></div><div><label class="label">USD 单价</label><input id="sqUsd" placeholder="如 110"></div></div></div>'+
+    '<button class="primary-btn mt12" onclick="submitQuote(\''+id+'\')">保存报价</button></div>';
+  document.body.appendChild(d);
+}
+async function submitQuote(id){
+  var q={date:safeVal('sqDate'),name:safeVal('sqName'),qty:safeVal('sqQty'),priceCny:safeVal('sqCny'),priceUsd:safeVal('sqUsd')};
+  if(!q.name&&!q.priceCny&&!q.priceUsd)return toast('请填写至少一项');
+  await addQuote(id,q);
+  document.querySelector('.sheet-mask').remove();
+  toast('已添加报价');
+}
+function safeVal(id){var e=document.getElementById(id);return e?e.value.trim():'';}
+
+/* ===== 编辑 ===== */
+function renderEdit(id){
+  var c=id?clients.find(function(x){return x.id===id;}):{};
+  var isNew=!id;
+  if(!canWrite())return renderDetail(id||view.detailId);
+  var fields=[
+    ['name','客户名称',c&&c.name||'',1],
+    ['category','类别',c&&c.category||'',0],
+    ['region','区域',c&&c.region||'',0],
+    ['market','目标市场',c&&c.market||'',0],
+    ['targetProduct','目标产品',c&&c.targetProduct||'',0],
+    ['contact','联系人',c&&c.contact||'',0],
+    ['phone','电话',c&&c.phone||'',0],
+    ['address','地址',c&&c.address||'',0],
+    ['liaison','对接人',c&&c.liaison||'',0],
+    ['companyInfo','企业信息',c&&c.companyInfo||'',1]
+  ];
+  var regionOpts=regionOptions();
+  var catOpts=['已入库·跟进中','不活跃/潜在','海外渠道','已发货','报价客户'];
+  var html='<div class="rise form">';
+  html+='<div class="view-head"><button class="ghost-btn" style="flex:none;padding:9px 14px" onclick="'+(id?'goto(\'detail\',\''+id+'\')':'goto(\'list\')')+'">‹ 取消</button><h2>'+((isNew?'新增':'编辑')+'客户')+'</h2></div>';
+  fields.forEach(function(f){
+    var key=f[0],label=f[1],val=f[2],big=f[3];
+    html+='<div class="form-row '+(big?'':'form-col')+'">';
+    html+='<label class="label">'+label+(key==='name'?' *':'')+'</label>';
+    if(key==='region'){
+      var customSel=!!val&&regionOpts.indexOf(val)<0;
+      html+='<select id="e_region" onchange="regionCustom(this.value)"><option></option>';
+      regionOpts.forEach(function(o){html+='<option'+(val===o?' selected':'')+'>'+o+'</option>';});
+      html+='<option value="__custom__"'+(customSel?' selected':'')+'>＋ 自定义区域…</option>';
+      html+='</select>';
+      html+='<input id="e_region_custom" value="'+esc(val&&customSel?val:'')+'" placeholder="输入新区域名称，例如：中东/大洋洲…" style="margin-top:8px;display:'+(customSel?'block':'none')+'">';
+    }else if(key==='category'){
+      html+='<select id="e_'+key+'"><option></option>'+catOpts.map(function(o){return '<option'+(val===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select>';
+    }else if(big){
+      html+='<textarea id="e_'+key+'" rows="'+(key==='companyInfo'?5:2)+'" placeholder="'+label+'">'+esc(val)+'</textarea>';
+    }else{
+      html+='<input id="e_'+key+'" value="'+esc(val)+'" placeholder="'+label+'">';
+    }
+    html+='</div>';
+  });
+  html+='<div class="field-actions"><button class="save-btn" onclick="saveEdit(\''+(id||'')+'\')">保存</button>'+(isNew?'':'<button class="danger-btn" onclick="deleteClient(\''+id+'\')">删除</button>')+'</div>';
+  html+='</div>';
+  return html;
+}
+async function saveEdit(id){
+  if(!canWrite())return;
+  var o={};
+  ['name','category','market','targetProduct','contact','phone','address','liaison','companyInfo'].forEach(function(k){o[k]=safeVal('e_'+k);});
+  var rv=safeVal('e_region');
+  o.region=(rv==='__custom__'?safeVal('e_region_custom').trim():rv).trim();
+  if(!o.name)return toast('客户名称不能为空');
+  if(!o.region&&o.market)o.region=guessRegion(o.market);
+  if(id){await updateClient(id,o);toast('已保存');goto('detail',id);}
+  else{await createClient(o);view={name:'list',region:'全部',cat:'全部',q:''};render();toast('已新增客户');}
+}
+function guessRegion(m){var AM=['南非','安哥拉','科特迪瓦','赞比亚','肯尼亚','坦桑尼亚','加纳','刚果','尼日利亚','塞内加尔','马里','津巴布韦','非洲'],AMR=['美国','秘鲁','墨西哥','加拿大','古巴','巴西','南美','拉美','美洲','北美','智利'],EU=['德国','法国','英国','欧洲','斯洛伐克','欧盟'],AS=['巴基斯坦','印度','越南','菲律宾','印尼','新加坡','马来西亚','伊朗','伊拉克','中亚','俄罗斯','乌克兰','中东','阿联酋','沙特','巴布亚','澳大利亚','亚洲'];for(var i=0;i<AM.length;i++)if(m.indexOf(AM[i])>-1)return '非洲';for(i=0;i<AMR.length;i++)if(m.indexOf(AMR[i])>-1)return '美洲';for(i=0;i<EU.length;i++)if(m.indexOf(EU[i])>-1)return '欧洲';for(i=0;i<AS.length;i++)if(m.indexOf(AS[i])>-1)return '亚洲/大洋洲';return '国内';}
+/* 区域下拉：选择"自定义区域"时展开文本输入框 */
+function regionCustom(v){
+  var box=document.getElementById('e_region_custom');
+  if(box)box.style.display=(v==='__custom__')?'block':'none';
+}
+
+/* ===== 统计 ===== */
+function renderStat(){
+  var total=clients.length;
+  var act=clients.filter(function(c){return tagsOf(c).indexOf('已入库·跟进中')>-1;}).length;
+  var ship=clients.filter(function(c){return tagsOf(c).indexOf('已发货')>-1;}).length;
+  var quote=clients.filter(function(c){return (c.quotes||[]).length;}).length;
+  var html='<div class="rise"><div class="view-head"><h2>数据统计</h2></div>';
+  html+='<div class="stat-grid">';
+  html+='<div class="stat r1"><div class="n num">'+total+'</div><div class="t">客户总数</div></div>';
+  html+='<div class="stat r1"><div class="n num">'+act+'</div><div class="t">活跃跟进中</div></div>';
+  html+='<div class="stat r1"><div class="n num">'+quote+'</div><div class="t">有报价记录</div></div>';
+  html+='<div class="stat r2"><div class="n num">'+ship+'</div><div class="t">已发货</div></div>';
+  html+='</div>';
+  html+='<div class="block mt12"><div class="block-head"><h4>区域分布</h4></div><div class="region-bar">';
+  var max=1;REGIONS.forEach(function(rg){var n=regionCount(rg[0]);if(n>max)max=n;});
+  REGIONS.forEach(function(rg,i){
+    var n=regionCount(rg[0]);if(n===0)return;
+    var pct=Math.round(n/total*100);
+    html+='<div class="b-row"><span class="n">'+rg[0]+'</span><div class="track"><div class="fill'+(i===0?'':' amber')+'" style="width:'+Math.max(6,n/max*100)+'%"></div></div><span class="pct num">'+pct+'%</span></div>';
+  });
+  html+='</div></div>';
+  html+='</div>';
+  return html;
+}
+
+/* ===== 我的 ===== */
+function renderMy(){
+  var html='<div class="rise"><div class="view-head"><h2>我的</h2></div>';
+  html+='<div class="sec-block"><div class="sec-row"><div class="sec-ico" style="background:var(--brand-soft);color:var(--brand)">👤</div><div class="t"><b>'+esc(cur.user.u)+'</b><span>当前登录账号</span></div><span class="role '+cur.user.role+'">'+roleName(cur.user.role)+'</span></div></div>';
+  html+='<div class="sec-block"><div class="sec-row"><div class="sec-ico" style="background:var(--accent-soft);color:var(--accent)">🔐</div><div class="t"><b>修改密码</b><span>定期更换以保障账户安全</span></div><button class="icon-act" onclick="showPwForm(\'mine\')">修改</button></div>';
+  html+='<div id="pwForm"></div></div>';
+  if(isAdmin()){
+    html+='<div class="sec-block"><div class="sec-row"><div class="sec-ico" style="background:var(--danger-soft);color:var(--danger)">👥</div><div class="t"><b>账号管理</b><span>新账号在 Supabase 后台创建，此处调整各人权限</span></div></div>';
+    html+='<div id="acctList">'+acctListHtml()+'</div></div>';
+  }
+  html+='<div class="sec-block"><div class="sec-row"><div class="sec-ico" style="background:var(--bg-2);color:var(--ink-2)">☁️</div><div class="t"><b>云端同步</b><span>数据存于 Supabase，多人实时共享，各端登录即同步</span></div></div></div>';
+  html+='<button class="ghost-btn" style="color:var(--danger)" onclick="logout()">退出登录</button>';
+  html+='<p class="muted mt6" style="font-size:11.5px;text-align:center">斐石储能 · 客户管理系统 v2.0（云端）</p>';
+  html+='</div>';
+  return html;
+}
+function roleName(r){return r==='admin'?'管理员':(r==='editor'?'修改权限':'查看权限');}
+function acctListHtml(){
+  if(!accounts.length)return '<p class="muted" style="font-size:12.5px;margin:4px 0">暂无其他成员账号</p>';
+  var html='';
+  accounts.forEach(function(e){
+    var isSelf=cur&&cur.id===e.id;
+    var sel='<select style="position:static;flex:none;width:auto;padding:7px 8px;font-size:12.5px" onchange="changeRole(&apos;'+e.id+'&apos;,this.value)">'
+      +'<option value="viewer"'+(e.role==='viewer'?' selected':'')+'>查看权限</option>'
+      +'<option value="editor"'+(e.role==='editor'?' selected':'')+'>修改权限</option>'
+      +'<option value="admin"'+(e.role==='admin'?' selected':'')+'>管理员</option></select>';
+    html+='<div class="sec-row"><div class="t" style="flex:1"><b>'+esc(e.email||e.id)+'</b><span>'+roleName(e.role)+(isSelf?'（我）':'')+'</span></div>'+sel+'</div>';
+  });
+  return html;
+}
+function showPwForm(){
+  var h=document.getElementById('pwForm');
+  if(h.innerHTML){h.innerHTML='';return;}
+  h.innerHTML='<div class="form-grid mt12"><div><label class="label">旧密码</label><input type="password" id="po"></div><div><label class="label">新密码</label><input type="password" id="pn"></div><div><label class="label">确认新密码</label><input type="password" id="pc"></div><button class="save-btn" style="grid-column:1/-1" onclick="doChangePw()">确认修改</button></div>';
+}
+async function doChangePw(){
+  var o=document.getElementById('po').value,n=document.getElementById('pn').value,c=document.getElementById('pc').value;
+  if(!o||!n)return toast('请填写完整');
+  if(n.length<5)return toast('新密码至少 5 位');
+  if(n!==c)return toast('两次新密码不一致');
+  await changePassword(o,n);
+  var h=document.getElementById('pwForm');if(h)h.innerHTML='';
+  document.querySelectorAll('#pwForm input').forEach(function(i){i.value='';});
+  toast('密码已修改');
+}
+function showAddAcct(){ toast('新账号请在 Supabase 后台创建（Authentication → Add user，邮箱+密码）。创建后自动以“查看”权限加入，再到上方下拉调整为修改/管理员。'); }
+async function doAddAcct(){}
+
+/* ===== 底部导航 ===== */
+function renderBottom(){
+  var wrap=document.querySelector('.bottombar');
+  if(!wrap){
+    wrap=document.createElement('nav');wrap.className='bottombar';wrap.id='bottombar';
+    document.getElementById('vApp').appendChild(wrap);
+  }
+  var base=view.name==='detail'||view.name==='edit'?'list':'';
+  var items=[
+    ['home','区域','home',homeIco,view.name==='home'],
+    ['list','客户','list',listIco,view.name==='list'||view.name==='detail'||view.name==='edit'],
+    ['stat','统计','stat',statIco,view.name==='stat'],
+    ['my','我的','my',myIco,view.name==='my']
+  ];
+  wrap.innerHTML=items.map(function(it){
+    return '<button class="nav-item'+(it[4]?' on':'')+'" onclick="goto(\''+it[2]+'\')">'+it[3]+'<span>'+(it[1]==='客户'?'客户':it[1])+'</span></button>';
+  }).join('');
+  // FAB 权限与显示
+  var fab=document.getElementById('fab'),dim=document.getElementById('dim'),fm=document.getElementById('fabMenu');
+  fabOpen=false;fm.classList.add('hidden');dim.classList.remove('on');
+  if(canWrite()&&(view.name==='list'||view.name==='home')){
+    fab.classList.remove('hidden');
+    fm.innerHTML='<button class="fab-item" onclick="newClient()">＋ 新增客户</button>';
+  }else{fab.classList.add('hidden');}
+}
+function toggleFab(){
+  var fm=document.getElementById('fabMenu'),dim=document.getElementById('dim');
+  fabOpen=!fabOpen;
+  fm.classList.toggle('hidden',!fabOpen);dim.classList.toggle('on',fabOpen);
+}
+function closeFab(){toggleFab();}
+function newClient(){view={name:'edit',detailId:null};closeFab();render();}
+
+var homeIco='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11 12 3l9 8"/><path d="M5 10v10h14V10"/></svg>';
+var listIco='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>';
+var statIco='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 20V10M12 20V4M18 20v-6"/></svg>';
+var myIco='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6"/></svg>';
+
+/* ===== 导航（直接渲染切换 + 浏览器前进/后退）===== */
+var _push=false;
+function hist(){
+  var s=Object.assign({},view);
+  try{ if(_push)history.pushState({v:s},''); else history.replaceState({v:s},''); }catch(e){}
+  _push=false;
+}
+window.addEventListener('popstate',function(e){
+  if(e.state&&e.state.v&&cur){ try{view=e.state.v;render();}catch(_){} }
+});
+function goto(name,param){
+  view={name:name,region:'全部',cat:'全部',q:''};
+  if(name==='list'&&param)view.region=decodeURIComponent(param);
+  if(name==='detail'&&param)view.detailId=param;
+  if(name==='edit'&&param)view.detailId=param;
+  _push=true;render();hist();
+}
+function openClient(id){view={name:'detail',detailId:id};_push=true;render();hist();}
+function openRegion(r){view={name:'list',region:r,cat:'全部',q:''};_push=true;render();hist();}
+function setRegion(r){view.region=r;_push=false;render();hist();}
+function setCat(c){view.cat=c;_push=false;render();hist();}
+function searchInput(v){view.q=v;document.getElementById('panel').innerHTML=renderList();renderBottom();_push=false;hist();}
+function gotoDetail(name,param){goto(name,decodeURIComponent(param||''));}
+
+/* ===== 初始化：恢复 Supabase 会话 ===== */
+async function init(){
+  try{
+    var sbc=sbclip();
+    var {data:{user}}=await sbc.auth.getUser();
+    if(user){
+      await loadAll();
+      subscribe(sbc);
+      enterApp();
+      return;
+    }
+  }catch(e){ console.warn('init',e); }
+  document.getElementById('vLogin').style.display='flex';
+  document.getElementById('vApp').classList.remove('on');
+  var li=document.getElementById('loginUser');
+  li.addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('loginPw').focus();});
+  document.getElementById('loginPw').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+}
+init();
+</script>
+</body>
+</html>

@@ -964,39 +964,44 @@ function renderEdit(id){
   var c=id?clients.find(function(x){return x.id===id;}):{};
   var isNew=!id;
   if(!canWrite())return renderDetail(id||view.detailId);
+  function v(key){return (c&&c[key]!=null?c[key]:'')||'';}
   var fields=[
-    ['name','客户名称',c&&c.name||'',1],
-    ['category','类别',c&&c.category||'',0],
-    ['region','区域',c&&c.region||'',0],
-    ['market','目标市场',c&&c.market||'',0],
-    ['targetProduct','目标产品',c&&c.targetProduct||'',0],
-    ['contact','联系人',c&&c.contact||'',0],
-    ['phone','电话',c&&c.phone||'',0],
-    ['address','地址',c&&c.address||'',0],
-    ['liaison','对接人',c&&c.liaison||'',0],
-    ['companyInfo','企业信息',c&&c.companyInfo||'',1]
+    ['name','公司名称','',1,0],
+    ['contact','联系人','',0,0],
+    ['gender','性别','gender',0,1],
+    ['phone','电话','',0,0],
+    ['wechat','微信','',0,0],
+    ['level','级别(1-5)','level',0,1],
+    ['position','职位','position',0,1],
+    ['custType','客户类型','custType',0,1],
+    ['industry','行业分类','industry',0,1],
+    ['size','公司规模','size',0,1],
+    ['country','国家/地区','country',0,1],
+    ['status','业务状态','status',0,1],
+    ['channel','渠道','channel',0,1],
+    ['email','邮箱','',0,0],
+    ['addr','地址','',0,0],
+    ['targetMarket','目标市场','',0,0],
+    ['targetProduct','目标产品','',0,0],
+    ['latestQuote','最新报价','',0,0],
+    ['tags','客户标签','',0,0],
+    ['companyInfo','公司概况','',1,0]
   ];
-  var regionOpts=regionOptions();
-  var catOpts=['已入库·跟进中','不活跃/潜在','海外渠道','已发货','报价客户'];
   var html='<div class="rise form">';
   html+='<div class="view-head"><button class="ghost-btn" style="flex:none;padding:9px 14px" onclick="'+(id?'goto(\'detail\',\''+id+'\')':'goto(\'list\')')+'">‹ 取消</button><h2>'+((isNew?'新增':'编辑')+'客户')+'</h2></div>';
   fields.forEach(function(f){
-    var key=f[0],label=f[1],val=f[2],big=f[3];
+    var key=f[0],label=f[1],selSrc=f[2],big=f[3],isSel=f[4];
+    var val=(key==='addr')?v('addr'):(key==='tags'?(c&&c.tags||[]).join('、'):v(key));
     html+='<div class="form-row '+(big?'':'form-col')+'">';
     html+='<label class="label">'+label+(key==='name'?' *':'')+'</label>';
-    if(key==='region'){
-      var customSel=!!val&&regionOpts.indexOf(val)<0;
-      html+='<select id="e_region" onchange="regionCustom(this.value)"><option></option>';
-      regionOpts.forEach(function(o){html+='<option'+(val===o?' selected':'')+'>'+o+'</option>';});
-      html+='<option value="__custom__"'+(customSel?' selected':'')+'>＋ 自定义区域…</option>';
+    if(isSel){
+      html+='<select id="e_'+key+'"><option value=""></option>';
+      uniq(selSrc,false).forEach(function(o){html+='<option'+(String(val)===String(o)?' selected':'')+'>'+o+'</option>';});
       html+='</select>';
-      html+='<input id="e_region_custom" value="'+esc(val&&customSel?val:'')+'" placeholder="输入新区域名称，例如：中东/大洋洲…" style="margin-top:8px;display:'+(customSel?'block':'none')+'">';
-    }else if(key==='category'){
-      html+='<select id="e_'+key+'"><option></option>'+catOpts.map(function(o){return '<option'+(val===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select>';
     }else if(big){
-      html+='<textarea id="e_'+key+'" rows="'+(key==='companyInfo'?5:2)+'" placeholder="'+label+'">'+esc(val)+'</textarea>';
+      html+='<textarea id="e_'+key+'" rows="4" placeholder="'+label+'">'+esc(val)+'</textarea>';
     }else{
-      html+='<input id="e_'+key+'" value="'+esc(val)+'" placeholder="'+label+'">';
+      html+='<input id="e_'+key+'" value="'+esc(val)+'" placeholder="'+(key==='tags'?'用顿号或逗号分隔，如：复购客户、国企':label)+'">';
     }
     html+='</div>';
   });
@@ -1007,13 +1012,14 @@ function renderEdit(id){
 async function saveEdit(id){
   if(!canWrite())return;
   var o={};
-  ['name','category','market','targetProduct','contact','phone','address','liaison','companyInfo'].forEach(function(k){o[k]=safeVal('e_'+k);});
-  var rv=safeVal('e_region');
-  o.region=(rv==='__custom__'?safeVal('e_region_custom').trim():rv).trim();
-  if(!o.name)return toast('客户名称不能为空');
-  if(!o.region&&o.market)o.region=guessRegion(o.market);
+  ['name','contact','gender','phone','wechat','level','position','custType','industry','size','country','status','channel','email','targetMarket','targetProduct','latestQuote'].forEach(function(k){o[k]=safeVal('e_'+k);});
+  o.address=safeVal('e_addr');
+  o.companyInfo=safeVal('e_companyInfo');
+  var t=safeVal('e_tags');
+  o.tags=t?t.split(/[、,，;；]/).map(function(s){return s.trim();}).filter(Boolean):[];
+  if(!o.name)return toast('公司名称不能为空');
   if(id){await updateClient(id,o);toast('已保存');goto('detail',id);}
-  else{await createClient(o);view={name:'list',region:'全部',cat:'全部',channel:'全部',q:''};render();toast('已新增客户');}
+  else{view={name:'list',q:''};await createClient(o);render();toast('已新增客户');}
 }
 function guessRegion(m){var AM=['南非','安哥拉','科特迪瓦','赞比亚','肯尼亚','坦桑尼亚','加纳','刚果','尼日利亚','塞内加尔','马里','津巴布韦','非洲'],AMR=['美国','秘鲁','墨西哥','加拿大','古巴','巴西','南美','拉美','美洲','北美','智利'],EU=['德国','法国','英国','欧洲','斯洛伐克','欧盟'],AS=['巴基斯坦','印度','越南','菲律宾','印尼','新加坡','马来西亚','伊朗','伊拉克','中亚','俄罗斯','乌克兰','中东','阿联酋','沙特','巴布亚','澳大利亚','亚洲'];for(var i=0;i<AM.length;i++)if(m.indexOf(AM[i])>-1)return '非洲';for(i=0;i<AMR.length;i++)if(m.indexOf(AMR[i])>-1)return '美洲';for(i=0;i<EU.length;i++)if(m.indexOf(EU[i])>-1)return '欧洲';for(i=0;i<AS.length;i++)if(m.indexOf(AS[i])>-1)return '亚洲/大洋洲';return '国内';}
 /* 区域下拉：选择"自定义区域"时展开文本输入框 */

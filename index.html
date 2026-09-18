@@ -336,7 +336,7 @@ var store=null;         // 本地版遗留（云端版本不再使用）
 var cur=null;           // { user:{u,role}, id }
 var clients=[];
 var accounts=[];        // [{id,email,role}] 供管理员分配权限
-var view={name:'home',region:'全部',cat:'全部',channel:'全部',q:'',detailId:null};
+var view={name:'list',filters:{},q:'',detailId:null};
 var fabOpen=false;
 
 /* ================= Supabase 云端接入 ================= */
@@ -352,7 +352,7 @@ function sbclip(){
   if(!SUPABASE_URL||!SUPABASE_ANON)throw new Error('请在本文件顶部填入 SUPABASE_URL / SUPABASE_ANON');
   return sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
 }
-function toRow(o){return {name:o&&o.name||'',category:o&&o.category||'',region:o&&o.region||'',target_product:o&&o.targetProduct||'',market:o&&o.market||'',contact:o&&o.contact||'',phone:o&&o.phone||'',address:o&&o.address||'',liaison:o&&o.liaison||'',status:o&&o.status||'',company_info:o&&o.companyInfo||'',note:o&&o.note||''};}
+function toRow(o){return {name:o&&o.name||'',gender:o&&o.gender||'',wechat:o&&o.wechat||'',level:o&&o.level||'',position:o&&o.position||'',cust_type:o&&o.custType||'',industry:o&&o.industry||'',size:o&&o.size||'',country:o&&o.country||'',status:o&&o.status||'',channel:o&&o.channel||'',target_market:o&&o.targetMarket||'',target_product:o&&o.targetProduct||'',email:o&&o.email||'',contact:o&&o.contact||'',phone:o&&o.phone||'',address:o&&o.address||'',company_info:o&&o.companyInfo||'',latest_quote:o&&o.latestQuote||'',tags:o&&o.tags||[]};}
 async function loadAll(){
   var sbc=sbclip();
   var {data:{user}}=await sbc.auth.getUser();if(!user)return;
@@ -367,7 +367,7 @@ async function loadAll(){
   var {data:fs}=await sbc.from('followups').select('*');
   var {data:qs}=await sbc.from('quotes').select('*');
   var {data:sh}=await sbc.from('shipments').select('*');
-  clients=(cs||[]).map(function(r){return {id:r.id,name:r.name,category:r.category||'',region:r.region||'',targetProduct:r.target_product||'',market:r.market||'',contact:r.contact||'',phone:r.phone||'',address:r.address||'',liaison:r.liaison||'',status:r.status||'',companyInfo:r.company_info||'',note:r.note||'',tags:r.tags||[],followup:[],quotes:[],shipments:[],latestQuote:''};});
+  clients=(cs||[]).map(function(r){return {id:r.id,name:r.name,gender:r.gender||'',wechat:r.wechat||'',level:r.level||'',position:r.position||'',custType:r.cust_type||'',industry:r.industry||'',size:r.size||'',country:r.country||'',status:r.status||'',channel:r.channel||'',targetMarket:r.target_market||'',targetProduct:r.target_product||'',email:r.email||'',contact:r.contact||'',phone:r.phone||'',addr:r.address||'',liaison:r.liaison||'',companyInfo:r.company_info||'',latestQuote:r.latest_quote||'',note:r.note||'',region:r.region||'',tags:r.tags||[],followup:[],quotes:[],shipments:[]};});
   var cm={};clients.forEach(function(c){cm[c.id]=c;});
   (qs||[]).forEach(function(x){var c=cm[x.client_id];if(c)c.quotes.push({date:x.date||'',name:x.name||'',qty:x.qty||'',priceCny:x.price_cny||'',priceUsd:x.price_usd||'',retail:x.retail||''});});
   (fs||[]).forEach(function(x){var c=cm[x.client_id];if(c)c.followup.push({date:x.date||'',text:x.text||''});});
@@ -463,7 +463,7 @@ async function logout(){
   if(!confirm('确定退出登录？'))return;
   try{await sb.auth.signOut();}catch(e){}
   cur=null;clients=[];accounts=[];
-  view={name:'home',region:'全部',cat:'全部',channel:'全部',q:''};
+  view={name:'list',filters:{},q:''};
   document.getElementById('vLogin').style.display='flex';document.getElementById('vApp').classList.remove('on');document.getElementById('loginPw').value='';
 }
 /* 云端版本无需本地重置 */
@@ -601,8 +601,23 @@ function topbar(title,hasSearch){
   }
   var right='';
   if(view.name==='home')right='<button class="icon-btn" onclick="goto(\'stat\')" aria-label="统计"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 20V10M12 20V4M18 20v-6"/></svg></button>';
+  if(view.name==='list')right='<button class="icon-btn" onclick="exportCsv()" aria-label="导出" title="导出筛选后的客户列表"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>';
   right+='<button class="icon-btn" onclick="goto(\'my\')" aria-label="我的"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6"/></svg></button>';
   return '<div class="t-title">'+title+'<span class="t-sub">'+sub+'</span></div>'+search+'<div class="top-actions">'+right+'</div>';
+}
+/* 导出当前筛选结果（filtered()）为 CSV，Excel 可直接打开 */
+function exportCsv(){
+  var list=filtered();
+  var head=['联系人','性别','公司名称','级别','职位','客户类型','行业分类','公司规模','国家/地区','业务状态','渠道','目标市场','目标产品','微信','电话','邮箱','地址','客户标签','最新报价'];
+  var rows=list.map(function(c){
+    return [c.contact,c.gender,c.name,c.level,c.position,c.custType,c.industry,c.size,c.country,c.status,c.channel,c.targetMarket,c.targetProduct,c.wechat,c.phone,c.email,c.addr,(c.tags||[]).join('、'),c.latestQuote];
+  });
+  function cell(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"';}
+  var csv=('\ufeff'+[head].concat(rows).map(function(r){return r.map(cell).join(',');}).join('\n'));
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download='客户筛选_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},120);
+  toast('已导出 '+list.length+' 位客户');
 }
 function cu(){if(view.detailId)return clients.find(function(c){return c.id===view.detailId;});return null;}
 
@@ -648,40 +663,90 @@ function renderHome(){
 }
 
 function filtered(){
-  var r=view.region||'全部',cat=view.cat||'全部',ch=view.channel||'全部',q=view.q.toLowerCase();
+  var q=(view.q||'').toLowerCase();
+  var F=view.filters||{};
   return clients.filter(function(c){
-    if(r!=='全部'&&c.region!==r)return false;
-    if(cat!=='全部'&&tagsOf(c).indexOf(cat)<0)return false;
-    if(ch!=='全部'&&tagsOf(c).indexOf(ch)<0)return false;
-    if(q){var hay=(c.name+' '+c.contact+' '+c.phone+' '+c.market+' '+c.liaison+' '+c.targetProduct+' '+tagsOf(c).join(' ')).toLowerCase();if(hay.indexOf(q)<0)return false;}
+    if(q){var hay=(c.name+' '+c.contact+' '+c.phone+' '+c.targetMarket+' '+c.targetProduct+' '+(c.tags||[]).join(' ')).toLowerCase();if(hay.indexOf(q)<0)return false;}
+    function m(k,v){
+      if(!v||v==='全部')return true;
+      if(k==='company'){v=v.toLowerCase();return (c.name||'').toLowerCase().indexOf(v)>-1||(c.contact||c.liaison||'').toLowerCase().indexOf(v)>-1;}
+      if(k==='tag')return (c.tags||[]).indexOf(v)>-1;
+      return String(c[k]||'')===String(v);
+    }
+    for(var k in F){if(!m(k,F[k]))return false;}
     return true;
   });
 }
+/* 收集某字段在客户中的全部非空唯一值，用于生成筛选项；tag=true 时聚合客户标签 */
+function uniq(key,isTag){
+  var s={};
+  clients.forEach(function(c){
+    if(isTag){(c.tags||[]).forEach(function(t){if(t&&String(t).trim())s[String(t).trim()]=1;});}
+    else{var v=String(c[key]||'').trim();if(v)s[v]=1;}
+  });
+  return Object.keys(s).sort();
+}
+function setFilter(key,val){
+  view.filters=view.filters||{};
+  if(val==='全部')delete view.filters[key];else view.filters[key]=val;
+  _push=false;render();hist();
+}
+function setFilterCompany(v){
+  v=v.trim();view.filters=view.filters||{};
+  if(!v)delete view.filters.company;else view.filters.company=v;
+  document.getElementById('panel').innerHTML=renderList();renderBottom();_push=false;hist();
+}
 
+var filterOpen=false;
+function filterOpenCount(){
+  var n=Object.keys(view.filters||{}).length;
+  if(view.q&&String(view.q).trim())n+=1;
+  return n;
+}
+function toggleFilter(){filterOpen=!filterOpen;render();}
+function clearFilters(){view.filters={};view.q='';var si=document.getElementById('searchInput');if(si)si.value='';render();}
 function filterHtml(){
-  var html='<div class="filter-wrap">';
-  html+='<div class="filter-bar">';
-  html+='<button class="chip'+(view.region==='全部'?' on':'')+'" onclick="setRegion(&apos;全部&apos;)">全部区域<span class="count-pill">'+clients.length+'</span></button>';
-  regionOptions().forEach(function(rk){
-    if(regionCount(rk)===0)return;
-    html+='<button class="chip'+(view.region===rk?' on':'')+'" onclick="setRegion(&apos;'+rk+'&apos;)">'+rk+'<span class="count-pill">'+regionCount(rk)+'</span></button>';
-  });
-  html+='</div>';
-  html+='<div class="filter-bar">';
-  html+='<button class="chip'+(view.cat==='全部'?' on':'')+'" onclick="setCat(&apos;全部&apos;)">全部状态</button>';
-  catOptions().forEach(function(cat){
-    html+='<button class="chip'+(view.cat===cat?' on':'')+'" onclick="setCat(&apos;'+esc(cat)+'&apos;)">'+esc(cat)+'<span class="count-pill">'+catCount(cat)+'</span></button>';
-  });
-  html+='</div>';
-  html+='<div class="filter-bar">';
-  html+='<button class="chip'+(view.channel==='全部'?' on':'')+'" onclick="setChannel(&apos;全部&apos;)">全部渠道</button>';
-  channelOptions().forEach(function(cw){
-    var cc=channelCount(cw);if(cc===0)return;
-    html+='<button class="chip ghost'+(view.channel===cw?' on':'')+'" onclick="setChannel(&apos;'+esc(cw)+'&apos;)">'+esc(cw)+'<span class="count-pill">'+cc+'</span></button>';
-  });
-  html+='</div>';
-  html+='</div>';
-  return html;
+  var st='<style>.f-row{display:flex;align-items:flex-start;gap:10px;padding:7px 12px}.f-label{flex:none;width:70px;font-size:12px;font-weight:600;line-height:30px;color:var(--ink-2)}.f-chips{display:flex;gap:6px;overflow-x:auto;flex:1;scrollbar-width:none;padding-bottom:2px}.f-chips::-webkit-scrollbar{display:none}.f-input{flex:1;min-width:120px;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:13px;color:var(--ink)}#filterBody{max-height:46vh;overflow-y:auto}.filter-toggle{display:flex;align-items:center;gap:8px;width:100%;justify-content:space-between;padding:11px 14px;background:var(--surface);border-bottom:1px solid var(--line);font-size:13px;font-weight:600;color:var(--ink);cursor:pointer}.filter-toggle .fl{display:flex;align-items:center;gap:8px}.f-badge{min-width:18px;height:18px;border-radius:9px;background:var(--brand);color:#fff;font-size:11px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px;flex:none}.f-clear{font-size:12px;font-weight:500;color:var(--ink-2)}.f-chev{font-size:11px;color:var(--ink-2);transition:transform .2s ease}.f-chev.open{transform:rotate(180deg)}</style>';
+  var F=view.filters||{};
+  function row(label,key,vals,isTag,isInput){
+    var cur=F[key];var chips='';
+    if(isInput){
+      chips='<input class="f-input" value="'+esc(cur||'')+'" placeholder="输入公司或联系人姓名筛选" oninput="setFilterCompany(this.value)">';
+    }else{
+      chips+='<button class="chip'+(cur==null||cur==='全部'?' on':'')+'" onclick="setFilter(\''+key+'\',&apos;全部&apos;)">全部</button>';
+      (vals||[]).forEach(function(v){
+        var att=String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        chips+='<button class="chip'+(String(cur)===String(v)?' on':'')+'" onclick="setFilter(\''+key+'\',\''+att+'\')">'+esc(v)+'</button>';
+      });
+    }
+    return '<div class="f-row"><div class="f-label">'+label+'</div><div class="f-chips">'+chips+'</div></div>';
+  }
+  var body='<div id="filterBody" style="display:'+(filterOpen?'block':'none')+'">';
+  body+='<div style="display:flex;justify-content:flex-end;padding:6px 12px 0"><button class="chip" onclick="clearFilters()">✕ 清除全部筛选</button></div>';
+  body+='<div style="padding-top:2px">';
+  body+=row('性别','gender',uniq('gender',false));
+  body+=row('级别','level',uniq('level',false));
+  body+=row('公司/姓名','company',[],false,true);
+  body+=row('职位','position',uniq('position',false));
+  body+=row('客户类型','custType',uniq('custType',false));
+  body+=row('行业分类','industry',uniq('industry',false));
+  body+=row('公司规模','size',uniq('size',false));
+  body+=row('国家/地区','country',uniq('country',false));
+  body+=row('业务状态','status',uniq('status',false));
+  body+=row('渠道','channel',uniq('channel',false));
+  body+=row('目标市场','targetMarket',uniq('targetMarket',false));
+  body+=row('目标产品','targetProduct',uniq('targetProduct',false));
+  body+=row('客户标签','tag',uniq('',true),true);
+  body+='</div></div>';
+  var n=filterOpenCount();
+  var badge=n?'<span class="f-badge">'+n+'</span>':'';
+  var chev='<span class="f-chev'+(filterOpen?' open':'')+'">'+(filterOpen?'▼':'▼')+'</span>';
+  var head='<button class="filter-toggle" onclick="toggleFilter()">'+
+    '<span class="fl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>筛选'+badge+'</span>'+
+    (n?'<span class="f-clear" onclick="event.stopPropagation();clearFilters()">清除</span>':'')+
+    chev+
+  '</button>';
+  return st+head+body;
 }
 function renderFilterHost(){
   var fh=document.getElementById('filterHost');
@@ -691,20 +756,41 @@ function renderFilterHost(){
 }
 function renderList(){
   var list=filtered();
-  var html='';
   if(!list.length){
-    html+='<div class="empty"><div class="e-ico">🔍</div><div>没有匹配的客户</div></div>';
-  }else{
-    list.forEach(function(c){html+=card(c,latestQuoteText(c));});
+    return '<div class="empty"><div class="e-ico">🔍</div><div>没有匹配的客户</div></div>';
   }
-  return html;
+  var cols=[
+    ['名字',function(c){return c.contact||c.liaison;},1],
+    ['性别',function(c){return c.gender;},0],
+    ['公司名称',function(c){return c.name;},1],
+    ['级别(1-5)',function(c){return c.level;},0],
+    ['客户类型',function(c){return c.custType;},0],
+    ['行业分类',function(c){return c.industry;},0],
+    ['客户标签',function(c){return (c.tags||[]).join('、');},0]
+  ];
+  var thS='padding:9px 10px;text-align:left;font-weight:600;font-size:11.5px;color:var(--ink-2);background:var(--surface);border-bottom:2px solid var(--line);white-space:nowrap';
+  var tdS='padding:9px 10px;border-bottom:1px solid var(--line-2);font-size:12.5px;color:var(--ink);white-space:nowrap;max-width:240px;overflow:hidden;text-overflow:ellipsis';
+  var head=cols.map(function(x){return '<th style="'+thS+'">'+x[0]+'</th>';}).join('');
+  var rows=list.map(function(c){
+    var tds=cols.map(function(x){
+      var v=String(x[1](c)==null?'':x[1](c)).trim();
+      var b=v?esc(v):'<span style="color:var(--ink-3)">-</span>';
+      var s=tdS+(x[2]?';font-weight:600':'');
+      return '<td style="'+s+'">'+b+'</td>';
+    }).join('');
+    return '<tr style="cursor:pointer" onclick="openClient(\''+c.id+'\')">'+tds+'</tr>';
+  }).join('');
+  return '<div style="max-height:calc(100vh - 210px);overflow:auto;-webkit-overflow-scrolling:touch;background:var(--surface)">'+
+    '<table style="border-collapse:collapse;width:100%;min-width:640px">'+
+    '<thead><tr style="position:sticky;top:0;z-index:3;background:var(--surface);box-shadow:0 1px 0 var(--line)">'+head+'</tr></thead>'+
+    '<tbody>'+rows+'</tbody></table></div>';
 }
 function card(c,lp){
   var avName=(c.name||'客').replace(/^[（(]|[）)]/g,'').slice(0,1);
   var tags=tagsOf(c);
   var contact=(c.contact||c.liaison||'');
   var p1=contact?'<div class="row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6"/></svg><b>'+esc(contact)+'</b>'+(c.phone?' · '+esc(c.phone):'')+'</div>':'';
-  var p2=(c.market||c.targetProduct)?'<div class="row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'+esc(c.market||c.targetProduct)+'</div>':'';
+  var p2=(c.targetMarket||c.targetProduct)?'<div class="row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'+esc(c.targetMarket||c.targetProduct)+'</div>':'';
   var p3=lp?'<div class="row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 17v-6M7 17V9M11 17v-8M15 17v-4M19 17V5"/></svg><b>'+esc(lp)+'</b></div>':'';
   return '<button class="c-card" onclick="openClient(\''+c.id+'\')">'+
     '<div class="avatar">'+esc(avName)+'</div>'+
@@ -733,22 +819,37 @@ function renderDetail(id){
   html+='</div>';
 
   html+='<div class="panel" style="max-width:860px">';
-  html+='<div class="d-brief">';
-  html+='<div class="kv"><div class="k">类别</div><div class="v small">'+esc(tags[0]||'-')+'</div></div>';
-  html+='<div class="kv"><div class="k">对接人</div><div class="v small">'+esc(c.liaison||'-')+'</div></div>';
-  html+='<div class="kv"><div class="k">目标市场</div><div class="v small">'+esc(c.market||'-')+'</div></div>';
-  html+='<div class="kv"><div class="k">目标产品</div><div class="v small">'+esc(c.targetProduct||'-')+'</div></div>';
-  if(quote)html+='<div class="kv quote"><div class="k">最新报价</div><div class="v">'+esc(quote)+'</div></div>';
-  html+='</div>';
+  if(quote)html+='<div class="d-brief"><div class="kv quote"><div class="k">最新报价</div><div class="v">'+esc(quote)+'</div></div></div>';
 
-  html+='<div class="block"><div class="block-head"><h4>联系信息</h4></div><div class="contact-list">';
-  html+='<div class="contact-row"><div class="l">联系人</div><div class="r" onclick="copyText(this)">'+esc(c.contact||'-')+'</div></div>';
-  html+='<div class="contact-row"><div class="l">电话</div><div class="r" onclick="copyText(this)">'+esc(c.phone||'-')+'</div></div>';
-  html+='<div class="contact-row"><div class="l">地址</div><div class="r" style="font-size:12.5px;font-weight:600;text-align:right;word-break:break-all" onclick="copyText(this)">'+esc(c.address||'-')+'</div></div>';
+  /* 展示客户全部资料字段 */
+  function L(l,v,copy){
+    var inner=(copy?' onclick="copyText(this)"':'')+' style="text-align:right;font-weight:600;word-break:break-all"';
+    return '<div class="contact-row"><div class="l">'+l+'</div><div class="r'+inner+'">'+esc(v||'-')+'</div></div>';
+  }
+  html+='<div class="block"><div class="block-head"><h4>客户资料</h4></div><div class="contact-list">';
+  html+=L('公司名称',c.name);
+  html+=L('联系人',c.contact,true);
+  html+=L('性别',c.gender);
+  html+=L('电话',c.phone,true);
+  html+=L('微信',c.wechat,true);
+  html+=L('级别(1-5)',c.level);
+  html+=L('职位',c.position);
+  html+=L('客户类型',c.custType);
+  html+=L('行业分类',c.industry);
+  html+=L('公司规模',c.size);
+  html+=L('国家/地区',c.country);
+  html+=L('业务状态',c.status);
+  html+=L('渠道',c.channel);
+  html+=L('邮箱',c.email,true);
+  html+=L('地址',c.addr,true);
+  html+=L('目标市场',c.targetMarket);
+  html+=L('目标产品',c.targetProduct);
+  html+=L('最新报价',c.latestQuote||quote,true);
+  html+=L('客户标签',(c.tags||[]).join('、'));
   html+='</div></div>';
 
-  if(c.companyInfo){
-    html+='<div class="block"><div class="block-head"><h4>企业信息</h4></div><div class="long-text">'+esc(c.companyInfo)+'</div></div>';
+  if(c.companyInfo||c.note){
+    html+='<div class="block"><div class="block-head"><h4>企业信息 / 备注</h4></div><div class="long-text">'+esc(c.companyInfo||c.note||'')+'</div></div>';
   }
 
   html+='<div class="block"><div class="block-head"><h4>跟进记录 <span class="muted num" style="font-size:12px;font-weight:500">'+f.length+' 条</span></h4>'+(write?'<button class="icon-act" onclick="promptFollow(\''+c.id+'\')">＋ 添加</button>':'')+'</div>';
@@ -1003,9 +1104,7 @@ function renderBottom(){
   }
   var base=view.name==='detail'||view.name==='edit'?'list':'';
   var items=[
-    ['home','区域','home',homeIco,view.name==='home'],
     ['list','客户','list',listIco,view.name==='list'||view.name==='detail'||view.name==='edit'],
-    ['stat','统计','stat',statIco,view.name==='stat'],
     ['my','我的','my',myIco,view.name==='my']
   ];
   wrap.innerHTML=items.map(function(it){
@@ -1056,7 +1155,7 @@ function setCat(c){view.cat=c;_push=false;render();hist();}
 function setChannel(c){view.channel=c;_push=false;render();hist();}
 function jumpCat(c){view={name:'list',region:'全部',cat:c,channel:'全部',q:''};_push=true;render();hist();}
 function jumpChannel(c){view={name:'list',region:'全部',cat:'全部',channel:c,q:''};_push=true;render();hist();}
-function searchInput(v){view.q=v;document.getElementById('panel').innerHTML=renderList();renderBottom();_push=false;hist();}
+function searchInput(v){view.q=v;render();}
 function gotoDetail(name,param){goto(name,decodeURIComponent(param||''));}
 
 /* ===== 初始化：恢复 Supabase 会话 ===== */

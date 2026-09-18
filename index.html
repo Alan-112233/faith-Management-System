@@ -584,14 +584,26 @@ function render(){
 
 function renderTopbar(){
   var t=document.getElementById('topbar');
+  var old=document.getElementById('searchInput');
+  var keepFocus=false,caret=t?Number.MAX_SAFE_INTEGER:0;
+  if(old&&document.activeElement===old){keepFocus=true;caret=(old.selectionStart!=null?old.selectionStart:old.value.length);}
   var isDetail=view.name==='detail';
   if(isDetail||view.name==='edit'){
     var title=view.name==='edit'?'编辑客户':(cu().name||'客户详情');
     t.innerHTML=topbar(title,true);
+    restoreSearchFocus(keepFocus,caret);
     return;
   }
   var title=(view.name==='home')?'区域概览':(view.name==='stat')?'数据统计':(view.name==='my')?'我的' :'全部客户';
   t.innerHTML=topbar(title,false);
+  restoreSearchFocus(keepFocus,caret);
+}
+function restoreSearchFocus(keep,caret){
+  if(!keep)return;
+  var ni=document.getElementById('searchInput');
+  if(!ni)return;
+  ni.focus();
+  try{ni.setSelectionRange(caret,caret);}catch(e){}
 }
 function topbar(title,hasSearch){
   var sub=(view.name==='home')?'· '+clients.length+' 位客户' :(view.name==='list'?'· '+filtered().length+' 位':'');
@@ -960,6 +972,20 @@ function delShipment(sid){deleteShipment(sid);}
 function safeVal(id){var e=document.getElementById(id);return e?e.value.trim():'';}
 
 /* ===== 编辑 ===== */
+/* 下拉字段选中「＋ 新增选项」时展开自定义输入框 */
+function selCustom(key,val){
+  var box=document.getElementById('e_'+key+'_custom');
+  if(!box)return;
+  box.style.display=(val==='__new__')?'block':'none';
+  if(val==='__new__'&&!box.value)box.focus();
+}
+/* 读取下拉值：若选了「新增选项」则取自定义输入框内容；空输入回退为保留选择占位 */
+function selVal(key){
+  var e=document.getElementById('e_'+key);
+  if(!e)return '';
+  if(e.value==='__new__')return safeVal('e_'+key+'_custom')||e.value;
+  return e.value.trim();
+}
 function renderEdit(id){
   var c=id?clients.find(function(x){return x.id===id;}):{};
   var isNew=!id;
@@ -995,9 +1021,10 @@ function renderEdit(id){
     html+='<div class="form-row '+(big?'':'form-col')+'">';
     html+='<label class="label">'+label+(key==='name'?' *':'')+'</label>';
     if(isSel){
-      html+='<select id="e_'+key+'"><option value=""></option>';
+      html+='<select id="e_'+key+'" onchange="selCustom(\''+key+'\',this.value)"><option value=""></option>';
       uniq(selSrc,false).forEach(function(o){html+='<option'+(String(val)===String(o)?' selected':'')+'>'+o+'</option>';});
-      html+='</select>';
+      html+='<option value="__new__">＋ 新增选项…</option></select>';
+      html+='<input id="e_'+key+'_custom" value="'+esc(val)+'" placeholder="输入新选项，例如：'+label+'" style="display:none">';
     }else if(big){
       html+='<textarea id="e_'+key+'" rows="4" placeholder="'+label+'">'+esc(val)+'</textarea>';
     }else{
@@ -1012,7 +1039,8 @@ function renderEdit(id){
 async function saveEdit(id){
   if(!canWrite())return;
   var o={};
-  ['name','contact','gender','phone','wechat','level','position','custType','industry','size','country','status','channel','email','targetMarket','targetProduct','latestQuote'].forEach(function(k){o[k]=safeVal('e_'+k);});
+  function rv(k){var e=document.getElementById('e_'+k);return e&&e.tagName==='SELECT'?selVal(k):safeVal('e_'+k);}
+  ['name','contact','gender','phone','wechat','level','position','custType','industry','size','country','status','channel','email','targetMarket','targetProduct','latestQuote'].forEach(function(k){o[k]=rv(k);});
   o.address=safeVal('e_addr');
   o.companyInfo=safeVal('e_companyInfo');
   var t=safeVal('e_tags');
@@ -1161,7 +1189,17 @@ function setCat(c){view.cat=c;_push=false;render();hist();}
 function setChannel(c){view.channel=c;_push=false;render();hist();}
 function jumpCat(c){view={name:'list',region:'全部',cat:c,channel:'全部',q:''};_push=true;render();hist();}
 function jumpChannel(c){view={name:'list',region:'全部',cat:'全部',channel:c,q:''};_push=true;render();hist();}
-function searchInput(v){view.q=v;render();}
+function searchInput(v){
+  view.q=v;_push=false;
+  renderFilterHost();
+  var p=document.getElementById('panel');
+  if(view.name==='list')p.innerHTML=renderList();
+  else if(view.name==='home')p.innerHTML=renderHome();
+  else if(view.name==='stat')p.innerHTML=renderStat();
+  var sub=document.querySelector('#topbar .t-sub');
+  if(sub)sub.textContent='· '+filtered().length+' 位';
+  hist();
+}
 function gotoDetail(name,param){goto(name,decodeURIComponent(param||''));}
 
 /* ===== 初始化：恢复 Supabase 会话 ===== */
